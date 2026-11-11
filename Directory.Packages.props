@@ -1,72 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="AnyClone" Version="1.1.2" />
-    <PackageVersion Include="AutoMapper" Version="11.0.1" />
-    <PackageVersion Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="11.0.0" />
-    <PackageVersion Include="BlazorComponentUtilities" Version="1.8.0" />
-    <PackageVersion Include="Blazor-State" Version="4.0.1" />
-    <PackageVersion Include="coverlet.msbuild" Version="3.1.2" />
-    <PackageVersion Include="Dawn.Guard" Version="1.12.0" />
-    <PackageVersion Include="FakeItEasy" Version="7.3.1" />
-    <PackageVersion Include="Fixie" Version="2.2.2" />
-    <PackageVersion Include="Fixie.Console" Version="2.2.2" />
-    <PackageVersion Include="Fixie.TestAdapter" Version="2.2.0" />
-    <PackageVersion Include="FluentAssertions" Version="6.5.1" />
-    <PackageVersion Include="FluentValidation" Version="10.4.0" />
-    <PackageVersion Include="FluentValidation.AspNetCore" Version="10.4.0" />
-    <PackageVersion Include="Grpc.AspNetCore" Version="2.43.0" />
-    <PackageVersion Include="Grpc.AspNetCore.Server.Reflection" Version="2.43.0" />
-    <PackageVersion Include="Grpc.AspNetCore.Web" Version="2.43.0" />
-    <PackageVersion Include="Grpc.Net.Client" Version="2.43.0" />
-    <PackageVersion Include="Grpc.Net.Client.Web" Version="2.43.0" />
-    <PackageVersion Include="MediatR" Version="10.0.1" />
-    <PackageVersion Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="10.0.1" />
-    <PackageVersion Include="MicroElements.Swashbuckle.FluentValidation" Version="5.4.0" />       
-    <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="6.0.3" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="6.0.3" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="6.0.3" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="6.0.3" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="6.0.3" />
-    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="6.0.3" />
-    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="6.0.3" />
-    <PackageVersion Include="Microsoft.CodeAnalysis" Version="4.1.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.1.0" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="6.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="6.0.3" />
-    <PackageVersion Include="Microsoft.Extensions.FileProviders.Embedded" Version="6.0.3" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.1" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="6.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="6.0.0" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Cosmos" Version="6.0.3" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.3" />
-    <PackageVersion Include="Microsoft.Playwright" Version="1.19.1" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="1.1.1" />
-    <PackageVersion Include="Microsoft.Tye.Extensions.Configuration" Version="0.10.0-alpha.21420.1" />
-    <PackageVersion Include="Microsoft.TypeScript.MSBuild" Version="4.6.2" />
-    <PackageVersion Include="Oakton" Version="4.1.0" />
-    <PackageVersion Include="PeterLeslieMorris.Blazor.FluentValidation" Version="1.7.0" />
-    <PackageVersion Include="protobuf-net.Grpc" Version="1.0.152" />
-    <PackageVersion Include="protobuf-net.Grpc.AspNetCore" Version="1.0.152" />
-    <PackageVersion Include="protobuf-net.Grpc.AspNetCore.Reflection" Version="1.0.152" />
-    <PackageVersion Include="protobuf-net.Grpc.Reflection" Version="1.0.152" />
-    <PackageVersion Include="Scrutor" Version="4.1.0" />
-    <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.3.0" />
-    <PackageVersion Include="Swashbuckle.AspNetCore.Annotations" Version="6.3.0" />
-    <PackageVersion Include="Swashbuckle.AspNetCore.Filters" Version="7.0.2" />
-    <PackageVersion Include="Swashbuckle.AspNetCore.Swagger" Version="6.3.0" />
-    <PackageVersion Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.3.0" />
-    <PackageVersion Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.3.0" />
-    <PackageVersion Include="System.Configuration.ConfigurationManager" Version="6.0.0" />
-    <PackageVersion Include="System.Net.Http.Json" Version="6.0.0" />
-    <PackageVersion Include="System.ServiceModel.Primitives" Version="4.9.0" />
-    <PackageVersion Include="System.Text.Json" Version="6.0.2" />
-    <PackageVersion Include="TypeSupport" Version="1.1.12" />
-    <PackageVersion Include="Yarp.ReverseProxy" Version="1.0.0"/>
+    <!-- TimeWarp Packages -->
+    <!-- 3.0.0-beta.2 is the Amuru pin ganda repo audit wrote with the Nuru 4.0.0-beta.12 bump. why: task 153, 2026-11-10 -->
+    <PackageVersion Include="TimeWarp.Amuru" Version="3.0.0-beta.2" />
+    <PackageVersion Include="TimeWarp.Amuru.Tools" Version="3.0.0-beta.2" />
+    <PackageVersion Include="TimeWarp.Build.Tasks" Version="1.0.0" />
+    <PackageVersion Include="TimeWarp.Fixie" Version="3.1.0" />
+    <PackageVersion Include="TimeWarp.Mediator" Version="15.0.0-beta.5" />
+    <PackageVersion Include="TimeWarp.Mediator.Generators" Version="15.0.0-beta.5" />
+    <PackageVersion Include="TimeWarp.Nuru" Version="4.0.0-beta.12" />
+    <PackageVersion Include="TimeWarp.Nuru.DevCli" Version="4.0.0-beta.12" />
+    <PackageVersion Include="TimeWarp.SourceGenerators" Version="1.0.0-beta.13" />
+    <PackageVersion Include="TimeWarp.State" Version="$(TimeWarpStateVersion)" />
+    <PackageVersion Include="TimeWarp.State.Blazor" Version="$(TimeWarpStateVersion)" />
+    <PackageVersion Include="TimeWarp.Terminal" Version="2.0.0-beta.1" />
+    <PackageVersion Include="timewarp-heroicons" Version="2.2.0" />
 
-    <PackageVersion Include="Selenium.Support" Version="3.141.0" />
-    <PackageVersion Include="Selenium.WebDriver" Version="3.141.0" />
+    <!-- Microsoft ASP.NET Core -->
+    <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="11.0.0-rc.3.26522.148" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="11.0.0-rc.3.26522.148" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="11.0.0-rc.3.26522.148" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="11.0.0-rc.3.26522.148" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="11.0.0-rc.3.26522.148" />
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="11.0.0-rc.3.26522.148" />
+
+    <!-- Microsoft Code Analysis -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageVersion>
+    <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageVersion>
+    <!-- Analyzer and source generator compile against this Roslyn, so it is the consumer compiler floor.
+         5.9.0 loads on SDK 10.0.400+ and .NET 11 SDK preview.6+ (first SDKs that bundle Roslyn 5.9; task 151).
+         Those projects mark the reference PrivateAssets so it is not a package dependency. -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Analyzer.Testing" Version="1.1.4" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.CodeFix.Testing" Version="1.1.4" />
+    <!-- Code fixes compile against the same Roslyn floor as the analyzer. -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.9.0" />
+
+    <!-- Microsoft Extensions -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0-rc.3.26522.148" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Configuration" Version="11.0.0-rc.3.26522.148" />
+    <!-- Direct pin for timewarp-state-analyzer-tests: NuGet.Packaging 7.0.3 (via Analyzer.Testing 1.1.4) pulls 9.0.6,
+         which has NU1902/NU1903 advisories that fail the build under TreatWarningsAsErrors. why: task 148 2026-11-07 -->
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="11.0.0-rc.3.26522.148" />
+
+    <!-- Microsoft Testing & Build Tools -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <!-- v4 is the MSTest 4 build of Playwright. Microsoft.Playwright.MSTest 1.63.0 still binds the MSTest 3 assembly. -->
+    <PackageVersion Include="Microsoft.Playwright.MSTest.v4" Version="1.64.1" />
+    <PackageVersion Include="Microsoft.TypeScript.MSBuild" Version="7.0.1" />
+
+    <!-- Testing Frameworks -->
+    <PackageVersion Include="FakeItEasy" Version="9.0.1" />
+    <PackageVersion Include="Fixie.TestAdapter" Version="4.2.0" />
+    <!-- Paired with Microsoft.Playwright.MSTest.v4. The non-v4 Playwright.MSTest package binds the MSTest 3 assembly identity. -->
+    <PackageVersion Include="MSTest.TestAdapter" Version="4.5.2" />
+    <PackageVersion Include="MSTest.TestFramework" Version="4.5.2" />
+    <PackageVersion Include="NetArchTest.eNhancedEdition" Version="1.4.5" />
+    <!-- 4.3.0 is the latest stable. 5.0.0-preview.2 drops params overloads such as ShouldBeOneOf; the stable-band outdated tool does not select it. -->
+    <PackageVersion Include="Shouldly" Version="4.3.0" />
+    <PackageVersion Include="coverlet.collector" Version="10.1.0" />
+
+    <!-- Blazor Storage -->
+    <PackageVersion Include="Blazored.LocalStorage" Version="4.5.0" />
+    <PackageVersion Include="Blazored.SessionStorage" Version="2.4.0" />
+
+    <!-- OpenTelemetry / Aspire (telemetry sample) -->
+    <PackageVersion Include="OpenTelemetry" Version="1.20.1" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.20.1" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.20.1" />
+    <PackageVersion Include="Aspire.Hosting" Version="13.6.4" />
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.6.4" />
+
+    <!-- System & Utilities -->
+    <PackageVersion Include="JetBrains.Annotations" Version="2026.2.0" />
   </ItemGroup>
 </Project>

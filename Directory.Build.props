@@ -1,67 +1,66 @@
 <Project>
-  <!-- Set common properties regarding assembly information and nuget packages -->
-  <PropertyGroup>
-    <Authors>Steven T. Cramer</Authors>
-    <Product>Blazor State</Product>
-    <!-- <PackageIconUrl>https://raw.githubusercontent.com/TimeWarpEngineering/blazor-state/master/Assets/Logo.png</PackageIconUrl> -->
-    <PackageProjectUrl>https://timewarpengineering.github.io/blazor-state/</PackageProjectUrl>
-    <PackageTags>TimeWarp-State TimeWarpState BlazorState Blazor State Blazor-State MediatR Mediator Pipeline Redux Flux</PackageTags>
-    <PackageReleaseNotes>a MediatR pipeline for Blazor state management.</PackageReleaseNotes>
-    <RepositoryUrl>https://github.com/TimeWarpEngineering/blazor-state.git</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
+
+  <!-- Import repository path definitions -->
+  <Import Project="$(MSBuildThisFileDirectory)msbuild/repository.props" />
+
+  <!-- MSBuild and NuGet behavior configuration -->
+  <PropertyGroup Label="MSBuild/NuGet Configuration">
+    <PackageOutputPath>$(PackagesDirectory)</PackageOutputPath>
+    <!-- Wins over NUGET_PACKAGES. Local-feed extracts stay under artifacts/nuget-packages. -->
+    <RestorePackagesPath>$(IsolatedNuGetPackagesDirectory)</RestorePackagesPath>
+    <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
   </PropertyGroup>
 
-  <!-- Deterministic Builds  https://devblogs.microsoft.com/dotnet/producing-packages-with-source-link/#deterministic-builds -->
-  <PropertyGroup Condition="'$(TF_BUILD)' == 'true'">
-    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
-    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
-  </PropertyGroup>
-
-  <!-- Common compile parameters -->
-  <PropertyGroup>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <!-- We use full (Windows PDBs) until cross platform support for source link will get better also needed for codecov -->
-    <DebugType>full</DebugType>
+  <!-- Default language and framework settings for all projects -->
+  <PropertyGroup Label="Project Defaults">
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-    <LangVersion>10.0</LangVersion>
-    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <Nullable>disable</Nullable>
-    <TargetFramework>net6.0</TargetFramework>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
-  
-  <!--This is to add the SHA for the commit to your assembly InformationalVersion -->
-  <Choose>
-    <When Condition="'$(OfficialBuild)' != 'true'">
-      <!-- On non-official builds we don't burn in a git sha. In large part because it
-           hurts our determinism efforts as binaries which should be the same between
-           builds will not (due to developers building against different HEAD
-           values -->
-      <PropertyGroup>
-        <GitHeadSha>&lt;developer build&gt;</GitHeadSha>
-      </PropertyGroup>
-    </When>
-    <When Condition="'$(BUILD_SOURCEVERSION)' != ''">
-      <PropertyGroup>
-        <GitHeadSha>$(BUILD_SOURCEVERSION)</GitHeadSha>
-      </PropertyGroup>
-    </When>
-    <When Condition="'$(BUILD_SOURCEVERSION)' == '' AND '$(GIT_COMMIT)' != ''">
-      <PropertyGroup>
-        <GitHeadSha>$(GIT_COMMIT)</GitHeadSha>
-      </PropertyGroup>
-    </When>
-    <Otherwise>
-      <PropertyGroup>
-        <GitHeadSha>Not found</GitHeadSha>
-        <DotGitDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory).git'))</DotGitDir>
-        <HeadFileContent Condition="Exists('$(DotGitDir)/HEAD')">$([System.IO.File]::ReadAllText('$(DotGitDir)/HEAD').Trim())</HeadFileContent>
-        <RefPath Condition="$(HeadFileContent.StartsWith('ref: '))">$(DotGitDir)/$(HeadFileContent.Substring(5))</RefPath>
-        <GitHeadSha Condition="'$(RefPath)' != '' AND Exists('$(RefPath)')">$([System.IO.File]::ReadAllText('$(RefPath)').Trim())</GitHeadSha>
-        <GitHeadSha Condition="'$(HeadFileContent)' != '' AND '$(RefPath)' == ''">$(HeadFileContent)</GitHeadSha>
-      </PropertyGroup>
-    </Otherwise>
-  </Choose>
+
+  <!-- C# interceptors for TimeWarp.Nuru source generators (runfiles + tools/dev-cli) -->
+  <PropertyGroup Label="Interceptors">
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);TimeWarp.Nuru.Generated</InterceptorsNamespaces>
+  </PropertyGroup>
+
+  <!-- Code quality, analyzers, and warning configuration -->
+  <PropertyGroup Label="Code Quality and Analysis">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>CS7035;NU1503;1503</NoWarn>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Code analyzers applied to all projects -->
+  <ItemGroup Label="Code Analyzers">
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <!-- Microsoft.CodeAnalysis.CSharp is a compile reference of the analyzer and source generator only.
+         A repo-wide reference ships the Roslyn compiler as a runtime dependency of every packed library. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
+    <!-- TW0007 file-level usings → kebab global-usings.cs.
+         TWA0004 #region Purpose (and TWA0023, TWA0038) ship in this package as of 1.0.0-beta.13.
+         Severities stay in .editorconfig. why: task 153 -->
+    <PackageReference Include="TimeWarp.SourceGenerators" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- TWA0004 default for sources outside the repo (package-injected files such as Fixie.Main.cs);
+       .editorconfig sets the real severity for the repo's own files and wins over this global config -->
+  <ItemGroup Label="Global Analyzer Config">
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)msbuild/external-sources.globalconfig" />
+  </ItemGroup>
+
+  <!-- Banned API Symbols -->
+  <ItemGroup Label="Banned API Analyzers">
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
+  </ItemGroup>
+
+  <!-- TimeWarp Build Tasks - Automatically injects git commit metadata into assemblies -->
+  <ItemGroup Label="Build Tools">
+    <PackageReference Include="TimeWarp.Build.Tasks" PrivateAssets="all" />
+  </ItemGroup>
+
 </Project>

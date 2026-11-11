@@ -1,0 +1,224 @@
+---
+uid: TimeWarp.State:03-Routing.md
+title: TimeWarp.State Routing Tutorial
+description: Learn how to implement stack-based routing in TimeWarp.State applications
+---
+
+# TimeWarp.State Routing Tutorial
+
+> [!TIP]
+> View the complete reference implementation for this tutorial:
+> - [sample-03-wasm Project](https://github.com/TimeWarpEngineering/timewarp-state/tree/master/samples/03-routing/wasm/sample-03-wasm)
+> - [Program.cs with Routing Configuration](https://github.com/TimeWarpEngineering/timewarp-state/blob/master/samples/03-routing/wasm/sample-03-wasm/program.cs)
+> - [MainLayout with TwBreadcrumb](https://github.com/TimeWarpEngineering/timewarp-state/blob/master/samples/03-routing/wasm/sample-03-wasm/layout/MainLayout.razor)
+> - [Example Pages with TwPageTitle](https://github.com/TimeWarpEngineering/timewarp-state/tree/master/samples/03-routing/wasm/sample-03-wasm/pages)
+
+## What is Stack-Based Routing?
+
+Stack-based routing in TimeWarp.State.Plus is a comprehensive navigation management system that provides:
+
+- Maintained history of visited routes
+- Breadcrumb-style navigation
+- Multi-step back navigation
+- Thread-safe route updates
+- Automatic page title synchronization
+
+This is particularly useful for:
+- Complex navigation flows
+- Breadcrumb trail implementation
+- History-based navigation
+- Concurrent route handling
+- Debugging navigation with the DevTools app
+
+## Prerequisites
+
+> [!IMPORTANT]
+> The tutorials in this series must be completed in sequence. Each tutorial builds upon the previous one:
+> 
+> 1. First complete [Sample00 StateActionHandler tutorial](xref:TimeWarp.State:00-StateActionHandler.md)
+>    - Establishes basic TimeWarp.State concepts
+>    - Sets up state management foundation
+>    - Implements action/handler pattern
+> 
+> 2. Only then proceed with this routing tutorial
+>    - Builds on the established foundation
+>    - Uses features from the previous tutorial
+>
+> Attempting to skip tutorials or complete them out of order will result in errors, as each tutorial depends on the setup and concepts from the previous ones.
+
+Additional requirements:
+- Understanding of TimeWarp.State concepts (State, Actions, and Handlers)
+- [TimeWarp DevTools](xref:TimeWarpState:DevTools.md) when you want the action log while navigating
+
+## Implementation Steps
+
+### 1. Start from the StateActionHandler sample
+
+Complete the [Sample00 StateActionHandler tutorial](xref:TimeWarp.State:00-StateActionHandler.md), but use `Sample03Wasm` as the project name:
+
+```pwsh
+dotnet new blazorwasm -n Sample03Wasm --use-program-main
+```
+
+Follow that tutorial until the counter dispatches an action.
+
+### 2. Add Required Dependencies
+
+Add TimeWarp.State.Plus if the previous tutorial did not:
+
+```pwsh
+dotnet add package TimeWarp.State.Plus --prerelease
+```
+
+### 3. Configure Route State
+
+Update your Program.cs to include routing configuration:
+
+```csharp
+namespace Sample03Wasm;
+
+public class Program
+{
+  public static async Task Main(string[] args)
+  {
+    var builder = WebAssemblyHostBuilder.CreateDefault(args);
+    builder.RootComponents.Add<App>("#app");
+    builder.RootComponents.Add<HeadOutlet>("head::after");
+
+    builder.Services.AddScoped
+    (
+      sp => new HttpClient 
+      { 
+        BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) 
+      }
+    );
+    
+    builder.Services.AddTimeWarpState
+    (
+      options =>
+      {
+        options.Assemblies = new[]
+        {
+          typeof(Program).Assembly,
+          typeof(TimeWarp.State.Plus.AssemblyMarker).Assembly
+        };
+      }
+    );
+
+    await builder.Build().RunAsync();
+  }
+}
+```
+
+### 4. Add Navigation Components
+
+Update `Layout/MainLayout.razor` to include the TwBreadcrumb component:
+
+```razor
+@inherits LayoutComponentBase
+
+<div class="page">
+  <div class="sidebar">
+    <NavMenu />
+  </div>
+
+  <main>
+    <div class="top-row px-4">
+      <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+    </div>
+
+    <div class="px-4">
+      <TwBreadcrumb MaxLinks=3 />
+    </div>
+
+    <article class="content px-4">
+      @Body
+    </article>
+  </main>
+</div>
+```
+
+The `TwBreadcrumb` component from TimeWarp.State.Plus provides:
+- Automatic route history tracking
+- Configurable number of displayed links through `MaxLinks` parameter
+- Built-in back navigation support
+- Self-contained breadcrumb styling (isolated CSS)
+
+`TwBreadcrumb` does **not** require Bootstrap. It ships `TwBreadcrumb.razor.css` under `tw-breadcrumb` classes. The host must load `{ASSEMBLY}.styles.css` (this sample: `sample-03-wasm.styles.css`) so the Razor class library isolated-CSS bundle is imported. The sample `index.html` may still reference `bootstrap.min.css` for the starter chrome (sidebar, `btn-primary`); that file is not what styles the trail.
+
+### 5. Update Page Titles
+
+In each of your pages (e.g., Home.razor, Counter.razor, Weather.razor), replace the `PageTitle` component with `TwPageTitle`:
+
+```razor
+// Before
+<PageTitle>Home</PageTitle>
+
+// After
+<TwPageTitle>Home</TwPageTitle>
+```
+
+The `TwPageTitle` component:
+- Automatically updates the browser's title
+- Integrates with the route state
+- Maintains proper titles in the breadcrumb trail
+- Synchronizes with navigation history
+
+## Best Practices
+
+### 1. Route State Management
+- Use `TwPageTitle` consistently across all pages
+- Implement `TwBreadcrumb` in your main layout
+- Let the routing system handle navigation state
+- Avoid manual route manipulation unless necessary
+
+### 2. Thread Safety
+- Route updates are automatically synchronized
+- Use the built-in concurrent navigation handling
+- Leverage semaphore-based protection for custom navigation logic
+- Monitor route stack modifications in development
+
+### 3. DevTools
+
+Watch route actions in [TimeWarp DevTools](xref:TimeWarpState:DevTools.md) when the host exports telemetry. The sample itself does not start the inspector.
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+1. **Routes Not Updating**
+   - Verify RouteState initialization in Program.cs
+   - Check NavigationManager service registration
+   - Ensure proper action dispatch sequence
+   - Validate route state subscription
+
+2. **Breadcrumbs Not Showing**
+   - Confirm TwBreadcrumb placement in MainLayout
+   - Verify TwPageTitle usage on all pages
+   - Check route state updates in the DevTools app
+   - Validate MaxLinks parameter value
+
+3. **Navigation History Issues**
+   - Ensure consistent TwPageTitle implementation
+   - Monitor the route stack in the DevTools app
+   - Verify concurrent navigation handling
+   - Check for custom navigation interference
+
+### Debugging Tips
+
+1. **Route State Inspection**
+   ```csharp
+   // Inject IState<RouteState> to inspect current route
+   @inject IState<RouteState> RouteState
+
+   @code
+   {
+     protected override void OnInitialized()
+     {
+       var currentRoute = RouteState.Value.CurrentRoute;
+       var routeStack = RouteState.Value.RouteStack;
+     }
+   }
+   ```
+
+This tutorial demonstrates how to implement comprehensive routing features in a TimeWarp.State application using the built-in TwPageTitle and TwBreadcrumb components. Watch the route actions in the companion DevTools app when you want a log.

@@ -1,0 +1,36 @@
+@namespace TimeWarp.Features.Developer
+@code {
+   /// <summary>
+   /// The render mode from RendererInfo.Name (new .NET 9 API).
+   /// </summary>
+   [Parameter, EditorRequired] public string RendererInfoName { get; set; } = null!;
+
+   /// <summary>
+   /// The assigned render mode from the component (what it will be after prerendering).
+   /// </summary>
+   [Parameter] public string? AssignedRenderModeName { get; set; }
+
+   /// <summary>
+   /// Whether the component is currently interactive.
+   /// </summary>
+   [Parameter] public bool? RendererInfoIsInteractive { get; set; }
+
+   /// <inheritdoc />
+   protected override void OnParametersSet()
+   {
+     base.OnParametersSet();
+     if(RendererInfoName == null)
+     {
+       throw new ArgumentNullException(nameof(RendererInfoName));
+     }
+   }
+}
+
+<div class="render-mode-display">
+    <div>RendererInfo.Name: <span data-qa="current-render-mode">@RendererInfoName</span></div>
+    <div>AssignedRenderMode: <span data-qa="configured-render-mode">@(AssignedRenderModeName ?? "None")</span></div>
+    @if (RendererInfoIsInteractive != null)
+    {
+        <div>RendererInfo.IsInteractive: <span data-qa="renderer-interactive">@RendererInfoIsInteractive</span></div>
+    }
+</div>

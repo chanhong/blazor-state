@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Sdk Name="Aspire.AppHost.Sdk" Version="13.6.4" />
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsAspireHost>true</IsAspireHost>
+    <AssemblyName>Sample04AppHost</AssemblyName>
+    <RootNamespace>Sample04AppHost</RootNamespace>
+    <NoWarn>$(NoWarn);1591;CS8981</NoWarn>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\server\sample-04-server\sample-04-server.csproj" />
+    <ProjectReference
+      Include="..\..\..\source\timewarp-state-devtools-hosting\timewarp-state-devtools-hosting.csproj"
+      IsAspireProjectResource="false" />
+  </ItemGroup>
+
+  <!-- In-repo import of the same targets the TimeWarp.State.DevTools.App package imports for consumers. ProjectReference does not flow that package's buildTransitive assets. -->
+  <Import Project="..\..\..\source\timewarp-state-devtools-app\build\TimeWarp.State.DevTools.App.targets" />
+
+</Project>

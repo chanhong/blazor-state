@@ -1,0 +1,11 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--twe-background);
+  color: var(--twe-ink);
+  font-family: var(--twe-font-sans);
+}

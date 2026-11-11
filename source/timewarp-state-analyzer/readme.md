@@ -1,0 +1,70 @@
+# TimeWarp.State Analyzer
+
+Roslyn analyzers packed into `TimeWarp.State` at `analyzers/dotnet/cs`. Consumers get them from the package; apps should not write a scan test for these rules.
+
+> **Breaking change:** diagnostic IDs were renamed to the `TWS` prefix: `TW0001` → `TWS0001`, `TW0002` → `TWS0002`, `TW0003` → `TWS0003`, to stop colliding with TimeWarp.SourceGenerators (which owns the bare `TW0001`–`TW0006` range). Update `.editorconfig` severities accordingly.
+
+## Rules
+
+| Id | Severity | Category | Analyzer |
+|----|----------|----------|----------|
+| TWS0001 | Error | TimeWarp.State | `TimeWarpStateActionAnalyzer` — `IAction` types must be nested in an `IState` |
+| TWS0002 | Warning | Design | `HandlerMustNotSendActionAnalyzer` — a state action handler must not send an action |
+| TWS0003 | Info | Design | `HandlerMustNotSendActionAnalyzer` — `[AllowActionSend]` exemption is present |
+| TWS0004 | Error | Design | `CatalogActionAnalyzer` — `[CatalogAction]` must be on a nested `*ActionSet.Action` |
+| TWS0005 | Error | Design | `CatalogActionAnalyzer` — `[CatalogAction]` requires a non-empty `Description` |
+| TWS0006 | Error | Design | `CatalogActionAnalyzer` — duplicate catalog `Name` in one assembly |
+| TWS0007 | Warning | Design | `CatalogActionAnalyzer` — `Description` should be one plain sentence |
+| TWS0008 | Error | Design | `CatalogActionAnalyzer` — `DisplayName`, when given, must not be empty or whitespace |
+| TWS0009 | Error | Design | `StateImplementationAnalyzer` — concrete `State<T>` must implement `ICloneable` or have an accessible constructor (parameterless is not required; abstract states are exempt) |
+| TWSG001 | Error | Persistence | `TimeWarpStateGenerator` (persistence `Load`) — `[PersistentState]` is not supported on nested classes |
+| TWSG002 | Error | Cloning | `TimeWarpStateGenerator` (clone stage) — a reachable member cannot be cloned (reported at that member, naming the root state); implement `ICloneable`, mark the member `[CloneShared]` to copy it by reference, or change the member |
+| TWSG003 | Error | Generation | `TimeWarpStateGenerator` (dispatch methods, persistence `Load`) — the generated `State.Method` or `Load()` would not compile (state not partial, abstract or inaccessible Action, parameter name clash, and so on); nothing is emitted. ActionSet methods: only for a plain class Action in a class state; other shapes are skipped silently |
+| TWS0010 | Error | Design | `StateInheritanceAnalyzer` |
+| TWS0011 | Warning | Design | `StateInheritanceAnalyzer` |
+| TWS0012 | Error | Design | `StateReadOnlyPublicPropertiesAnalyzer` |
+| TWS0013 | Warning | Design | `StateJsonSerializableAnalyzer` — a state that persistence or telemetry snapshots serialize is not listed by any `JsonSerializerContext` in the project; code fix `StateJsonSerializableCodeFixProvider` adds the `[JsonSerializable]` line or creates a context |
+| TWS0014 | Error | Design | `ReducerAnalyzer` — a `[Reducer]` Action gets no generated `Handler` (wrong placement, not partial, no `static void Reduce(TState, Action)`, a hand-written handler of that name, and so on); the message names the reason |
+
+## TWS0002 — Handler must not send an action
+
+A State is an isolated feature boundary. Handlers do their own work and may **publish a notification**. They never send an action — not on their own state, not on another state. Pages and components sequence actions; notification handlers react.
+
+Default severity is **Warning**. Promote to Error:
+
+```ini
+dotnet_diagnostic.TWS0002.severity = error
+```
+
+TimeWarp.SourceGenerators ships an unrelated **TW0002** (`XmlDocsToMarkdownAnalyzer`) under the bare `TW` prefix. This rule used to share that same bare `TW0002` id, so an `.editorconfig` that set `dotnet_diagnostic.TW0002.severity = none` for that rule also silenced HandlerMustNotSendAction; the `TWS` prefix removes that collision.
+
+Scope is symbol-based: any type whose base chain includes `TimeWarp.State.StateActionHandler<>`, `TimeWarp.Mediator.ActionHandler<>`, or the legacy `TimeWarp.State.ActionHandler<>`. Handlers implement `IRequestHandler<>` through `ActionHandler<>`. TimeWarp.Mediator 15 removed `IActionHandler<>`; the analyzer still looks that name up and treats a missing type as not a handler. App-derived bases (`BaseHandler<>`, `DefaultApiHandler<,,>`) are included without name matching. Every method body counts (`Handle`, `HandleSuccess`, `HandleError`, `HandleException`; partials as a group).
+
+**Flagged**
+
+- `ISender.Send` / `IMediator.Send` / `IState.Sender.Send` whose argument implements `IAction`
+- ActionSet entry methods on an `IState` (for example `XState.FetchX(...)`), identified by a nested `{MethodName}ActionSet`
+
+**Allowed**
+
+- `IPublisher.Publish` / `IMediator.Publish` / `INotification` arguments
+- Direct mutation of the handler's own state
+- `NavigationManager`
+
+**Escape hatch:** `[AllowActionSend("reason")]` on the handler type or method. TWS0002 is suppressed; **TWS0003** (Info) reports the exemption.
+
+## TWS0013 — State needs a [JsonSerializable] entry
+
+A concrete `State<T>` needs source-generated `JsonTypeInfo` when it has `[PersistentState]` (and the project declares a `JsonSerializerContext`) or when the project references `TimeWarp.State.Telemetry` (snapshots skip a state with no type info). The rule fires when no context in the project lists it.
+
+The telemetry reason cannot see `IncludeSnapshots` (off by default) or a resolver set on the telemetry options, because both are runtime settings. A spans-only project turns the rule off with `dotnet_diagnostic.TWS0013.severity = none` (or `suggestion`) in `.editorconfig`.
+
+The code fix lives in `timewarp-state-analyzer-code-fixes.dll`, packed beside this assembly. It is a separate assembly so this one keeps compiler-only references (RS1038). The fix appends `[JsonSerializable(typeof(X))]` to a chosen context, or creates `state-json-context.cs` with `StateJsonContext` when there is none. The new context is `public` for a public state and `internal` otherwise. The developer still wires the context once: `options.JsonSerializerOptions.TypeInfoResolver = AppJsonContext.Default` in `AddTimeWarpState`.
+
+## Generator / analyzer ordering
+
+Source generators run before analyzers in the same compilation, so generated ActionSet entry methods are visible to TWS0002 when user code calls them. TWS0002 uses `GeneratedCodeAnalysisFlags.None`: it does not inspect generated method bodies. The `Sender.Send` inside a generated wrapper is therefore not flagged (the wrapper is a method on the State, not a handler). Pipeline behaviors that send tracking actions are not handlers and stay allowed.
+
+If a consumer disables the ActionSet method generator and hand-writes a wrapper on the State, the call is still flagged when a nested `{MethodName}ActionSet` exists.
+
+See [Analyzers](../../documentation/topics/analyzers.md) for consumer-facing documentation.

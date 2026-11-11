@@ -1,0 +1,379 @@
+#region Purpose
+// Proves POST /ingest/spans rejects hostile input and survives null fields.
+#endregion
+
+#region Design
+// The endpoint is reachable by any local page, so the body is untrusted: JSON content type only,
+// size capped, and null members never reach the inspector page.
+// Attribute keys are copied unchanged, including a key with no spaces, so the detail model can carry it.
+#endregion
+
+namespace TimeWarp.State.DevTools.Tests;
+
+public class SpanIngestEndpoint_Should
+{
+  public static async Task RejectANonJsonContentTypeWith415()
+  {
+    await using WebApplicationFactory<Program> factory = new();
+    HttpClient client = factory.CreateClient();
+    using StringContent content = new("""{"Spans":[]}""", System.Text.Encoding.UTF8, "text/plain");
+    HttpResponseMessage response = await client.PostAsync("/ingest/spans", content);
+    response.StatusCode.ShouldBe(HttpStatusCode.UnsupportedMediaType);
+  }
+
+  public static async Task RejectAnOversizedBodyWith413()
+  {
+    await using WebApplicationFactory<Program> factory = new();
+    HttpClient client = factory.CreateClient();
+    string padding = new('x', SpanIngestEndpoint.MaxBodyBytes + 1024);
+    using StringContent content = new($$"""{"Spans":[],"Pad":"{{padding}}"}""", System.Text.Encoding.UTF8, "application/json");
+    HttpResponseMessage response = await client.PostAsync("/ingest/spans", content);
+    response.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
+  }
+
+  public static async Task RejectAChunkedOversizedBodyWith413()
+  {
+    await using WebApplicationFactory<Program> factory = new();
+    HttpClient client = factory.CreateClient();
+    string padding = new('x', SpanIngestEndpoint.MaxBodyBytes + 1024);
+    byte[] bytes = System.Text.Encoding.UTF8.GetBytes($$"""{"Spans":[],"Pad":"{{padding}}"}""");
+    using HttpRequestMessage request = new(HttpMethod.Post, "/ingest/spans")
+    {
+      Content = new ChunkedContent(bytes)
+    };
+    request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+    HttpResponseMessage response = await client.SendAsync(request);
+    response.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
+  }
+
+  public static async Task CapSpansPerRequest()
+  {
+    await using WebApplicationFactory<Program> factory = new();
+    HttpClient client = factory.CreateClient();
+    SpanIngestDocument document = new();
+    for (int index = 0; index < SpanIngestEndpoint.MaxSpansPerRequest + 20; index++)
+    {
+      document.Spans.Add(AppSpan("Action" + index));
+    }
+
+    HttpResponseMessage response = await client.PostAsJsonAsync
+    (
+      "/ingest/spans",
+      document,
+      SpanIngestJsonContext.Default.SpanIngestDocument
+    );
+    response.EnsureSuccessStatusCode();
+    (await response.Content.ReadFromJsonAsync<int>()).ShouldBe(SpanIngestEndpoint.MaxSpansPerRequest);
+  }
+
+  public static async Task RejectANullSpansListWith400()
+  {
+    await using WebApplicationFactory<Program> factory = new();
+    HttpClient client = factory.CreateClient();
+    using StringContent content = new("""{"Spans":null}""", System.Text.Encoding.UTF8, "application/json");
+    HttpResponseMessage response = await client.PostAsync("/ingest/spans", content);
+    response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+  }
+
+  public static async Task NormalizeNullFieldsAndSkipNullItems()
+  {
+    await using WebApplicationFactory<Program> factory = new();
+    HttpClient client = factory.CreateClient();
+    const string body = """
+      {"Spans":[
+        null,
+        {"Name":null,"Status":null,"SpanId":null,"Attributes":null,"Events":null},
+        {"Name":"CounterState.Go","Status":null,"Attributes":{"timewarp.state.state_type":"CounterState","timewarp.state.action":"Go"},"Events":[null,{"Name":"state.snapshot","Attributes":null},{"Name":"state.snapshot","Attributes":{"snapshot.json":null}}]}
+      ]}
+      """;
+    using StringContent content = new(body, System.Text.Encoding.UTF8, "application/json");
+    HttpResponseMessage response = await client.PostAsync("/ingest/spans", content);
+    response.EnsureSuccessStatusCode();
+
+    InspectorLog log = factory.Services.GetRequiredService<InspectorLog>();
+    log.Snapshot().Count.ShouldBe(2);
+    foreach (ActionLogEntry entry in log.Snapshot())
+    {
+      entry.Name.ShouldNotBeNull();
+      entry.Status.ShouldNotBeNull();
+      entry.ActionName.ShouldNotBeNull();
+      entry.StateTypeName.ShouldNotBeNull();
+    }
+  }
+
+  public static async Task RecordInterleavedStatesAndAnInitRow()
+  {
+    await using WebApplicationFactory<Program> factory = new();
+    HttpClient client = factory.CreateClient();
+    SpanIngestDocument document = new()
+    {
+      Spans =
+      [
+        Tagged
+        (
+          "CounterState.Initialized",
+          "init",
+          "CounterState",
+          InspectorCapture.InitKind,
+          InspectorCapture.SnapshotEventName,
+          """{"count":0}"""
+        ),
+        Tagged
+        (
+          "OtherState.SetAction",
+          "Set",
+          "OtherState",
+          "",
+          InspectorCapture.SnapshotEventName,
+          """{"name":"a"}"""
+        ),
+        Tagged
+        (
+          "CounterState.IncrementCountActionSet.Action",
+          "IncrementCountActionSet.Action",
+          "CounterState",
+          "",
+          InspectorCapture.DiffEventName,
+          """{"count":5}"""
+        )
+      ]
+    };
+
+    HttpResponseMessage response = await client.PostAsJsonAsync
+    (
+      "/ingest/spans",
+      document,
+      SpanIngestJsonContext.Default.SpanIngestDocument
+    );
+    response.EnsureSuccessStatusCode();
+
+    InspectorLog log = factory.Services.GetRequiredService<InspectorLog>();
+    IReadOnlyList<ActionLogEntry> entries = log.Snapshot();
+    entries.Count.ShouldBe(3);
+    entries[0].Kind.ShouldBe(InspectorCapture.InitKind);
+    entries[0].ActionName.ShouldBe("init");
+    entries[0].StateTypeName.ShouldBe("CounterState");
+    entries[0].SnapshotKind.ShouldBe(InspectorCapture.SnapshotEventName);
+    entries[1].StateTypeName.ShouldBe("OtherState");
+    entries[1].Kind.ShouldBe("");
+    entries[2].SnapshotKind.ShouldBe(InspectorCapture.DiffEventName);
+    entries[2].SnapshotJson.ShouldBe("""{"count":5}""");
+
+    log.FoldCurrent().Single(state => state.StateTypeName == "CounterState").Json.ShouldBe("""{"count":5}""");
+    log.FoldThrough(entries[0].Sequence).ShouldHaveSingleItem().Json.ShouldBe("""{"count":0}""");
+    log.FoldCurrent().Single(state => state.StateTypeName == "OtherState").Json.ShouldBe("""{"name":"a"}""");
+  }
+
+  public static async Task RecordTwoInterleavedStoresAndFoldTheNewest()
+  {
+    const string prerenderStoreId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+    const string interactiveStoreId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+    await using WebApplicationFactory<Program> factory = new();
+    HttpClient client = factory.CreateClient();
+    SpanIngestDocument document = new()
+    {
+      Spans =
+      [
+        Tagged
+        (
+          "CounterState.Initialized",
+          "init",
+          "CounterState",
+          InspectorCapture.InitKind,
+          InspectorCapture.SnapshotEventName,
+          """{"count":0}""",
+          prerenderStoreId,
+          InspectorCapture.PrerenderRender
+        ),
+        Tagged
+        (
+          "CounterState.Initialized",
+          "init",
+          "CounterState",
+          InspectorCapture.InitKind,
+          InspectorCapture.SnapshotEventName,
+          """{"count":0}""",
+          interactiveStoreId,
+          InspectorCapture.InteractiveRender
+        ),
+        Tagged
+        (
+          "CounterState.IncrementCountActionSet.Action",
+          "IncrementCountActionSet.Action",
+          "CounterState",
+          "",
+          InspectorCapture.DiffEventName,
+          """{"count":5}""",
+          interactiveStoreId,
+          InspectorCapture.InteractiveRender
+        ),
+        Tagged
+        (
+          "OtherState.SetAction",
+          "Set",
+          "OtherState",
+          "",
+          InspectorCapture.SnapshotEventName,
+          """{"name":"a"}""",
+          prerenderStoreId,
+          InspectorCapture.PrerenderRender
+        )
+      ]
+    };
+
+    HttpResponseMessage response = await client.PostAsJsonAsync
+    (
+      "/ingest/spans",
+      document,
+      SpanIngestJsonContext.Default.SpanIngestDocument
+    );
+    response.EnsureSuccessStatusCode();
+
+    InspectorLog log = factory.Services.GetRequiredService<InspectorLog>();
+    IReadOnlyList<ActionLogEntry> entries = log.Snapshot();
+    entries.Count.ShouldBe(4);
+    entries[0].StoreId.ShouldBe(prerenderStoreId);
+    entries[0].Render.ShouldBe(InspectorCapture.PrerenderRender);
+    entries[1].StoreId.ShouldBe(interactiveStoreId);
+    entries[2].StoreId.ShouldBe(interactiveStoreId);
+    entries[2].Render.ShouldBe(InspectorCapture.InteractiveRender);
+    entries[3].StoreId.ShouldBe(prerenderStoreId);
+
+    FoldedState current = log.FoldCurrent().ShouldHaveSingleItem();
+    current.StoreId.ShouldBe(interactiveStoreId);
+    current.Json.ShouldBe("""{"count":5}""");
+
+    IReadOnlyList<FoldedState> prerenderFold = log.FoldStore(prerenderStoreId);
+    prerenderFold.Single(state => state.StateTypeName == "CounterState").Json.ShouldBe("""{"count":0}""");
+    prerenderFold.Single(state => state.StateTypeName == "OtherState").Json.ShouldBe("""{"name":"a"}""");
+  }
+
+  public static async Task CapAndMarkAnOversizedSnapshot()
+  {
+    await using WebApplicationFactory<Program> factory = new();
+    HttpClient client = factory.CreateClient();
+    SpanIngestItem item = AppSpan("Big");
+    item.Events[0].Attributes[InspectorCapture.SnapshotJsonTagName] = new string('y', SpanIngestEndpoint.MaxSnapshotLength + 500);
+    SpanIngestDocument document = new() { Spans = [item] };
+
+    HttpResponseMessage response = await client.PostAsJsonAsync
+    (
+      "/ingest/spans",
+      document,
+      SpanIngestJsonContext.Default.SpanIngestDocument
+    );
+    response.EnsureSuccessStatusCode();
+
+    ActionLogEntry entry = factory.Services.GetRequiredService<InspectorLog>().Snapshot().Single();
+    entry.SnapshotJson!.Length.ShouldBe(SpanIngestEndpoint.MaxSnapshotLength);
+    entry.SnapshotTruncated.ShouldBeTrue();
+  }
+
+  public static async Task KeepALongAttributeKeyOnTheDetailModel()
+  {
+    const string longKey =
+      "timewarp.state.attribute.with.a.deliberately.long.key.that.must.wrap.instead.of.overflowing.the.label.column";
+
+    await using WebApplicationFactory<Program> factory = new();
+    HttpClient client = factory.CreateClient();
+    SpanIngestItem item = AppSpan("IncrementCountActionSet.Action");
+    item.Attributes[longKey] = "kept";
+    SpanIngestDocument document = new() { Spans = [item] };
+
+    HttpResponseMessage response = await client.PostAsJsonAsync
+    (
+      "/ingest/spans",
+      document,
+      SpanIngestJsonContext.Default.SpanIngestDocument
+    );
+    response.EnsureSuccessStatusCode();
+
+    ActionLogEntry entry = factory.Services.GetRequiredService<InspectorLog>().Snapshot().Single();
+    entry.Attributes[longKey].ShouldBe("kept");
+    entry.Attributes[InspectorCapture.ActionTagName].ShouldBe("IncrementCountActionSet.Action");
+    entry.Attributes[InspectorCapture.StateTypeTagName].ShouldBe("CounterState");
+  }
+
+  private static SpanIngestItem Tagged
+  (
+    string name,
+    string actionName,
+    string stateTypeName,
+    string kind,
+    string eventName,
+    string json,
+    string storeId = "",
+    string render = ""
+  )
+  {
+    Dictionary<string, string> attributes = new()
+    {
+      [InspectorCapture.ActionTagName] = actionName,
+      [InspectorCapture.StateTypeTagName] = stateTypeName,
+      [InspectorCapture.KindTagName] = kind
+    };
+    if (storeId.Length > 0)
+    {
+      attributes[InspectorCapture.StoreTagName] = storeId;
+    }
+
+    if (render.Length > 0)
+    {
+      attributes[InspectorCapture.RenderTagName] = render;
+    }
+
+    return new SpanIngestItem
+    {
+      Name = name,
+      Status = "Ok",
+      Attributes = attributes,
+      Events =
+      [
+        new SpanIngestEvent
+        {
+          Name = eventName,
+          Attributes = new Dictionary<string, string>
+          {
+            [InspectorCapture.SnapshotJsonTagName] = json
+          }
+        }
+      ]
+    };
+  }
+
+  private static SpanIngestItem AppSpan(string actionName) =>
+    new()
+    {
+      Name = "CounterState." + actionName,
+      Status = "Ok",
+      Attributes = new Dictionary<string, string>
+      {
+        [InspectorCapture.ActionTagName] = actionName,
+        [InspectorCapture.StateTypeTagName] = "CounterState"
+      },
+      Events =
+      [
+        new SpanIngestEvent
+        {
+          Name = InspectorCapture.SnapshotEventName,
+          Attributes = new Dictionary<string, string>
+          {
+            [InspectorCapture.SnapshotJsonTagName] = "{}"
+          }
+        }
+      ]
+    };
+
+  /// <summary>Content with no known length, so HttpClient sends it chunked.</summary>
+  private sealed class ChunkedContent(byte[] bytes) : HttpContent
+  {
+    protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
+      stream.WriteAsync(bytes, 0, bytes.Length);
+
+    protected override bool TryComputeLength(out long length)
+    {
+      length = 0;
+      return false;
+    }
+  }
+}

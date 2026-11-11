@@ -1,0 +1,74 @@
+---
+uid: TimeWarpState:Persistence.md
+title: Persistence
+---
+
+# Persist state in the browser
+
+`[PersistentState]` on a top-level state tells TimeWarp.State.Plus to save that state after each of its actions and to load it when the store creates the state.
+
+## Register
+
+```csharp
+builder.Services.AddBlazoredSessionStorage();
+builder.Services.AddBlazoredLocalStorage();
+builder.Services.AddGeneratedMediator<ClientPipeline>();
+builder.Services.AddTimeWarpState(options =>
+{
+  options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+builder.Services.AddTimeWarpStateBlazor();
+builder.Services.AddTimeWarpStatePersistence();
+```
+
+```csharp
+[assembly: MediatorScope(typeof(ClientPipeline))]
+[assembly: MediatorBehavior(typeof(PersistentStatePostProcessor<,>), order: 520, Scope = typeof(ClientPipeline))]
+```
+
+`PersistentStatePostProcessor` is opt-in. Blazored is how the host selects session storage versus local storage. `AddTimeWarpStatePersistence` registers `PersistenceService`. Each storage service is optional: a missing one logs a warning and that store is skipped. On .NET 10 and .NET 11, alias `PersistentStateAttribute` to `TimeWarp.Features.Persistence.PersistentStateAttribute` so it does not collide with `Microsoft.AspNetCore.Components.PersistentStateAttribute`.
+
+```csharp
+[PersistentState(PersistentStateMethod.LocalStorage)]
+public sealed partial class DisplayPreferencesState : State<DisplayPreferencesState>
+{
+}
+```
+
+Use `PersistentStateMethod.SessionStorage` for tab-scoped data and `LocalStorage` for values that should survive a new tab.
+
+## Load
+
+The first `GetState` publishes `StateInitializedNotification`. `StateInitializedNotificationHandler` sends `LoadPersistentStateRequest` for types marked `[PersistentState]`. The generated `Load()` method on the state sends that same request when a page needs to read storage again.
+
+The load replaces the store entry. It is not an action, so it does not go through render subscriptions. A page that needs the snapshot on first paint can await `store.WaitForInitializationAsync<DraftNoteState>()`. That task finishes when `StateInitializedNotification` has been handled. `FindInitializationTask` looks up a state that already exists and does not create one.
+
+## JSON and keys
+
+Save and load use `TimeWarpStateOptions.JsonSerializerOptions`. Put converters there. Load deserializes with a case-insensitive copy of those options.
+
+### Trimming and AOT
+
+With no resolver, `System.Text.Json` uses reflection, which trimming and Native AOT do not support. List each persisted state on a `JsonSerializerContext` and make that context the resolver in `AddTimeWarpState`:
+
+```csharp
+[JsonSerializable(typeof(DisplayPreferencesState))]
+[JsonSerializable(typeof(DraftNoteState))]
+internal sealed partial class AppStateJsonContext : JsonSerializerContext;
+
+builder.Services.AddTimeWarpState(options =>
+{
+  options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+  options.JsonSerializerOptions.TypeInfoResolver = AppStateJsonContext.Default;
+});
+```
+
+Persistence copies these options, resolver included. Once the project declares a context, analyzer **TWS0013** warns on each `[PersistentState]` state the context does not list, and its code fix adds the line. See [Analyzers](xref:TimeWarpState:Analyzers.md).
+
+The write key is `Type.FullName`. Load tries the full name, then the simple name. There is no migration framework: a new constructor parameter needs a CLR default if older payloads omit it, and a payload that does not bind throws `JsonException`.
+
+Neither store is a secret store. Any script on the origin can read it. Each action rewrites the whole state, so keep the persisted type small.
+
+## Sample
+
+[05-Persistence](../../samples/05-persistence/readme.md) is a WebAssembly workspace: a draft in session storage and display preferences in local storage.

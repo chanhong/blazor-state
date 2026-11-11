@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>TimeWarp.State.DevTools.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Fixie.TestAdapter" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="OpenTelemetry" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="TimeWarp.Amuru" />
+    <PackageReference Include="TimeWarp.Fixie" />
+    <!-- Direct compile reference. The inspector host's package reference does not have to flow for these tests to name ISender. -->
+    <PackageReference Include="TimeWarp.Mediator" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\source\timewarp-state-devtools\timewarp-state-devtools.csproj" />
+    <ProjectReference Include="..\..\source\timewarp-state-devtools-export\timewarp-state-devtools-export.csproj" />
+    <ProjectReference Include="..\..\source\timewarp-state-devtools-hosting\timewarp-state-devtools-hosting.csproj" />
+    <ProjectReference Include="..\..\source\timewarp-state-devtools-wasm\timewarp-state-devtools-wasm.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TimeWarpStateDevToolsStampPath>true</TimeWarpStateDevToolsStampPath>
+  </PropertyGroup>
+
+  <Import Project="..\..\source\timewarp-state-devtools-app\build\TimeWarp.State.DevTools.App.targets" />
+
+</Project>

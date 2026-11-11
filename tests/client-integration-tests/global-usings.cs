@@ -1,0 +1,37 @@
+#region Purpose
+// Global usings for the client integration tests.
+#endregion
+
+#region Design
+// Counter tests live in namespace CounterState_ (not CounterState) so the global Counter using can bind the
+// CounterState type; a namespace with the type's name would shadow it.
+#endregion
+
+global using TimeWarp.Features.Cloning;
+global using TimeWarp.State;
+global using Shouldly;
+global using TimeWarp.Mediator;
+global using TimeWarp.Mediator.Generated;
+global using Microsoft.AspNetCore.Mvc.Testing;
+global using Microsoft.Extensions.DependencyInjection;
+global using System.CodeDom.Compiler;
+global using System.Linq;
+global using System.Net;
+global using System.Net.Http;
+global using System.Reflection;
+global using System.Runtime.CompilerServices;
+global using Test.App.Client.Features.Blue;
+global using Test.App.Client.Features.Counter;
+global using TestApp.Client.Integration.Tests.Clone;
+global using System.Text.Json;
+global using AnyClone.Tests.Extensions;
+global using Test.App.Client.Features.Application;
+global using Test.App.Client.Features.WeatherForecast;
+global using Test.App.Contracts.Features.ExceptionHandlings;
+global using static Test.App.Contracts.Features.WeatherForecast.GetWeatherForecasts;
+global using Test.App.Client.Features.EventStream;
+global using Test.App.Client.Features.Purple;
+global using TestApp.Client.Integration.Tests.Infrastructure;
+global using TimeWarp.Features.ActionTracking;
+global using TimeWarp.Features.RenderSubscriptions;
+global using TimeWarp.Fixie;

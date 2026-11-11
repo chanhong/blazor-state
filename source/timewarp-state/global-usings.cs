@@ -1,0 +1,35 @@
+#region Purpose
+// Project-wide global usings for TimeWarp.State.
+#endregion
+
+#region Design
+// One list so individual files need no using directives; no other design decisions.
+#endregion
+
+global using TimeWarp.Features.Cloning;
+global using TimeWarp.State.Extensions;
+global using TimeWarp.State;
+global using JetBrains.Annotations;
+global using TimeWarp.Mediator;
+global using Microsoft.Extensions.DependencyInjection.Extensions;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging.Abstractions;
+global using Microsoft.Extensions.Logging;
+global using System.Collections.Concurrent;
+global using System.Collections.Immutable;
+global using System.Collections.Generic;
+global using System.Diagnostics;
+global using System.Globalization;
+global using System.Linq;
+global using System.Reflection;
+global using System.Runtime.Serialization;
+global using System.Text.Json;
+global using System.Text.RegularExpressions;
+global using System.Text;
+global using System;
+global using System.Collections;
+global using System.Linq.Expressions;
+global using System.Runtime.CompilerServices;
+global using System.Text.Json.Serialization;
+global using TimeWarp.Features.RenderSubscriptions;
+global using TimeWarp.Features.StateTransactions;

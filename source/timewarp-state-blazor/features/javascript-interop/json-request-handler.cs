@@ -1,0 +1,215 @@
+#region Purpose
+// Dispatches JSON requests from JavaScript into the client mediator pipeline.
+#endregion
+
+#region Design
+// Handle resolves names only against JavaScriptDispatchRegistry (never Type.GetType) and fails
+// closed: unknown names, non-action types and unconstructible payloads log a warning and throw
+// InvalidRequestTypeException. Warnings never log the caller-supplied JSON (Debug only) and cap
+// the caller-supplied name. See javascript-dispatch-registry.cs for the opt-in rationale.
+// InitAsync is idempotent so extra renders cannot leak JS interop roots.
+// One DotNetObjectReference is stored for the handler lifetime and disposed
+// with the scoped service. JSDisconnectedException is swallowed because
+// circuit teardown can dispose after the JS runtime is already gone. InitAsync swallows it too:
+// a circuit that drops before first render has no page script left to initialize.
+// TimeWarpJavaScriptInterop also gates on firstRender; both guards stay.
+#endregion
+
+namespace TimeWarp.Features.JavaScriptInterop;
+
+public class JsonRequestHandler : IAsyncDisposable, IDisposable
+{
+  private readonly JsonSerializerOptions JsonSerializerOptions;
+  private readonly IJSRuntime JsRuntime;
+  private readonly ILogger Logger;
+  private readonly ISender<ClientPipeline> Sender;
+  private readonly JavaScriptDispatchRegistry JavaScriptDispatchRegistry;
+  private bool IsDisposed;
+  private bool IsInitialized;
+  private DotNetObjectReference<JsonRequestHandler>? JsonRequestHandlerReference;
+
+  public JsonRequestHandler
+  (
+    ILogger<JsonRequestHandler> logger,
+    ISender<ClientPipeline> sender,
+    IJSRuntime jsRuntime,
+    TimeWarpStateOptions timeWarpStateOptions,
+    JavaScriptDispatchRegistry javaScriptDispatchRegistry
+  )
+  {
+    ArgumentNullException.ThrowIfNull(logger);
+    ArgumentNullException.ThrowIfNull(javaScriptDispatchRegistry);
+    Logger = logger;
+    JavaScriptDispatchRegistry = javaScriptDispatchRegistry;
+    Sender = sender;
+    JsRuntime = jsRuntime;
+    JsonSerializerOptions = timeWarpStateOptions.JsonSerializerOptions;
+    if (Logger.IsEnabled(LogLevel.Debug))
+    {
+      Logger.LogDebug
+      (
+        EventIds.JsonRequestHandler_Initializing,
+        "constructed with PropertyNamingPolicy {PropertyNamingPolicy} and {ConverterCount} converters",
+        JsonSerializerOptions.PropertyNamingPolicy?.GetType().Name ?? "(none)",
+        JsonSerializerOptions.Converters.Count
+      );
+    }
+  }
+
+  /// <summary>
+  /// Dispatches a request from JavaScript. Only types allow-listed with
+  /// <see cref="ServiceCollectionExtensions.AddJavaScriptDispatch"/> are dispatched; everything else is rejected.
+  /// </summary>
+  /// <param name="requestTypeAssemblyQualifiedName">
+  /// The allowed type's full name, "FullName, AssemblyName", assembly-qualified name, or alias.
+  /// </param>
+  /// <param name="requestAsJson">The request as JSON. Empty creates the request with its parameterless constructor.</param>
+  /// <exception cref="InvalidRequestTypeException">The name is not allowed, the type is not dispatchable, or the payload is invalid.</exception>
+  [JSInvokable]
+  public Task Handle(string requestTypeAssemblyQualifiedName, string? requestAsJson = null)
+  {
+    if (string.IsNullOrWhiteSpace(requestTypeAssemblyQualifiedName))
+    {
+      Logger.LogWarning(EventIds.JsonRequestOfInvalidType, "Rejected JavaScript dispatch: request type name was empty");
+      throw new InvalidRequestTypeException("Request type name is empty.", requestTypeAssemblyQualifiedName ?? string.Empty);
+    }
+
+    Logger.LogDebug
+    (
+      EventIds.JsonRequestReceived,
+      "Handling request of type: {requestTypeAssemblyQualifiedName}: {requestAsJson}",
+      requestTypeAssemblyQualifiedName,
+      requestAsJson
+    );
+
+    if (!JavaScriptDispatchRegistry.TryResolve(requestTypeAssemblyQualifiedName, out Type? requestType))
+    {
+      Logger.LogWarning
+      (
+        EventIds.JsonRequestOfInvalidType,
+        "Rejected JavaScript dispatch of {requestTypeName}: not allowed. Allow it with AddJavaScriptDispatch",
+        Truncate(requestTypeAssemblyQualifiedName)
+      );
+      throw new InvalidRequestTypeException
+      (
+        "Request type is not allowed for JavaScript dispatch. Allow it with services.AddJavaScriptDispatch(b => b.Allow<TAction>()).",
+        requestTypeAssemblyQualifiedName
+      );
+    }
+
+    if (!typeof(IAction).IsAssignableFrom(requestType))
+    {
+      Logger.LogWarning
+      (
+        EventIds.JsonRequestOfInvalidType,
+        "Rejected JavaScript dispatch of {requestTypeAssemblyQualifiedName}: {requestType} is not an action",
+        requestTypeAssemblyQualifiedName,
+        requestType.FullName
+      );
+      throw new InvalidRequestTypeException("Request type is not an action.", requestTypeAssemblyQualifiedName);
+    }
+
+    object instance = CreateRequest(requestTypeAssemblyQualifiedName, requestType, requestAsJson);
+
+    // Send returns ValueTask and throws before that for a null request or a missing handler.
+    // AsTask keeps this JSInvokable method on Task, which is what the interop caller awaits.
+    Task<object?> result = Sender.Send(instance).AsTask();
+    Logger.LogDebug(EventIds.JsonRequestHandled, "Request Handled");
+    return result;
+  }
+
+  [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "requestType is an action the host rooted with AddJavaScriptDispatch Allow<T>.")]
+  [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2057", Justification = "requestType is an action the host rooted with AddJavaScriptDispatch Allow<T>.")]
+  [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2067", Justification = "requestType is an action the host rooted with AddJavaScriptDispatch Allow<T>.")]
+  [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2072", Justification = "requestType is an action the host rooted with AddJavaScriptDispatch Allow<T>.")]
+  [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "requestType is an action the host rooted with AddJavaScriptDispatch Allow<T>.")]
+  [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050", Justification = "requestType is an action the host rooted with AddJavaScriptDispatch Allow<T>.")]
+  private object CreateRequest(string requestTypeName, Type requestType, string? requestAsJson)
+  {
+    Exception? innerException = null;
+    try
+    {
+      object? instance = string.IsNullOrWhiteSpace(requestAsJson)
+        ? requestType.GetConstructor(Type.EmptyTypes) is null ? null : Activator.CreateInstance(requestType)
+        : JsonSerializer.Deserialize(requestAsJson, requestType, JsonSerializerOptions);
+
+      if (instance is not null) return instance;
+    }
+    catch (Exception exception) when (exception is not OutOfMemoryException)
+    {
+      innerException = exception;
+    }
+
+    Logger.LogWarning
+    (
+      EventIds.JsonRequestInvalidPayload,
+      innerException,
+      "Rejected JavaScript dispatch of {requestType}: could not create the request from its JSON payload",
+      requestType.FullName
+    );
+    throw new InvalidRequestTypeException
+    (
+      string.IsNullOrWhiteSpace(requestAsJson)
+        ? "Request has no JSON payload and no public parameterless constructor."
+        : "Request JSON could not be deserialized.",
+      requestTypeName,
+      innerException
+    );
+  }
+
+  // Page script controls the name; cap what reaches Warning-level logs.
+  private static string Truncate(string value) => value.Length <= 256 ? value : $"{value[..256]}…";
+
+  public async ValueTask InitAsync()
+  {
+    if (IsInitialized || IsDisposed)
+    {
+      return;
+    }
+
+    Logger.LogDebug(EventIds.JsonRequestHandler_Initializing, "Initializing");
+    JsonRequestHandlerReference = DotNetObjectReference.Create(this);
+    IsInitialized = true;
+    const string initializeJavaScriptInteropName = "InitializeJavaScriptInterop";
+    try
+    {
+      await JsRuntime.InvokeVoidAsync(initializeJavaScriptInteropName, JsonRequestHandlerReference);
+    }
+    catch (JSDisconnectedException)
+    {
+      // The circuit is already gone, so there is no page script to initialize.
+      Logger.LogDebug(EventIds.JsonRequestHandler_Initializing, "JS runtime disconnected before initialization");
+    }
+  }
+
+  public void Dispose()
+  {
+    DisposeCore();
+    GC.SuppressFinalize(this);
+  }
+
+  public ValueTask DisposeAsync()
+  {
+    Dispose();
+    return ValueTask.CompletedTask;
+  }
+
+  private void DisposeCore()
+  {
+    if (IsDisposed)
+    {
+      return;
+    }
+
+    IsDisposed = true;
+    try
+    {
+      JsonRequestHandlerReference?.Dispose();
+    }
+    catch (JSDisconnectedException)
+    {
+    }
+
+    JsonRequestHandlerReference = null;
+  }
+}

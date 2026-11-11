@@ -1,0 +1,88 @@
+#region Purpose
+// Tests for GetEnclosingStateType and TryGetEnclosingStateType.
+#endregion
+
+#region Design
+// Uses a private TestState with nested classes. Non-nested types throw NonNestedClassException or return false.
+#endregion
+
+namespace GetEnclosingStateType_;
+
+public class TypeExtensionsTests
+{
+  private class TestState : IState
+  {
+    public class NestedClass;
+
+    public class AnotherNestedClass : NestedClass;
+
+    public ISender<ClientPipeline> Sender { get; set; } = null!;
+    public Guid Guid { get; } = Guid.Empty;
+    public void Initialize() => throw new NotImplementedException();
+    public void CancelOperations() => throw new NotImplementedException();
+  }
+    
+  public void Should_Get_Enclosing_State_Type_For_Nested_Class()
+  {
+    // Arrange
+    Type nestedClassType = typeof(TestState.NestedClass);
+
+    // Act
+    Type enclosingStateType = nestedClassType.GetEnclosingStateType();
+
+    // Assert
+    enclosingStateType.ShouldBe(typeof(TestState));
+  }
+    
+  public void Should_Get_Enclosing_State_Type_For_Deeply_Nested_Class()
+  {
+    // Arrange
+    Type deeplyNestedClassType = typeof(TestState.AnotherNestedClass);
+
+    // Act
+    Type enclosingStateType = deeplyNestedClassType.GetEnclosingStateType();
+
+    // Assert
+    enclosingStateType.ShouldBe(typeof(TestState));
+  }
+    
+  public void Should_Throw_Exception_For_Non_Nested_Class()
+  {
+    // Arrange
+    Type nonNestedClassType = typeof(string); // Example of a non-nested class
+
+    // Act & Assert
+    Should.Throw<NonNestedClassException>(() => nonNestedClassType.GetEnclosingStateType())
+      .Message.ShouldBe("String must be nested in a class that implements IState");
+  }
+
+  public void Should_TryGet_Enclosing_State_Type_For_Nested_Class()
+  {
+    Type nestedClassType = typeof(TestState.NestedClass);
+
+    bool found = nestedClassType.TryGetEnclosingStateType(out Type? enclosingStateType);
+
+    found.ShouldBeTrue();
+    enclosingStateType.ShouldBe(typeof(TestState));
+  }
+
+  public void Should_TryGet_Enclosing_State_Type_For_Deeply_Nested_Class()
+  {
+    Type deeplyNestedClassType = typeof(TestState.AnotherNestedClass);
+
+    bool found = deeplyNestedClassType.TryGetEnclosingStateType(out Type? enclosingStateType);
+
+    found.ShouldBeTrue();
+    enclosingStateType.ShouldBe(typeof(TestState));
+  }
+
+  public void Should_TryGet_Return_False_For_Non_Nested_Class()
+  {
+    Type nonNestedClassType = typeof(string);
+
+    bool found = nonNestedClassType.TryGetEnclosingStateType(out Type? enclosingStateType);
+
+    found.ShouldBeFalse();
+    enclosingStateType.ShouldBeNull();
+  }
+}

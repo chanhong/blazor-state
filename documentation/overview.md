@@ -1,0 +1,106 @@
+---
+uid: TimeWarpState:Overview.md
+title: TimeWarp.State Overview
+---
+[!include[Badges](partials/badges.md)]
+
+[!include[Summary](partials/summary.md)]
+
+Please see the **[GitHub Site](https://github.com/TimeWarpEngineering/timewarp-state)** for source and filing of issues.
+
+[!include[Installation](partials/installation.md)]
+
+[!include[GettingStarted](partials/getting-started.md)]
+
+## The TimeWarp.State Architecture
+
+### State is a boundary
+
+A State is an isolated feature boundary. Its action handlers do their own work and, if something elsewhere must react, **publish a notification** that says what happened. A handler never sends an action — not on its own state, not on another state. Orchestration of multi-step flows lives outside the state: pages and components sequence actions; notification handlers react. Calling into another state from a handler breaks encapsulation. The analyzer enforces this as **TWS0002** (Warning by default; promote to Error with `dotnet_diagnostic.TWS0002.severity = error`). `[AllowActionSend("reason")]` is a temporary escape hatch and reports **TWS0003** (Info) so the exemption stays visible.
+
+### Store 1..* State
+
+TimeWarp.State implements a single `Store` with a collection of `State`s.
+
+To access a state you can either inherit from the TimeWarpStateComponent and use
+
+```csharp
+Store.GetState<YourState>()
+```
+
+or move the GetState functionality into your component
+
+```csharp
+  protected T GetState<T>()
+  {
+    Type stateType = typeof(T);
+    Subscriptions.Add(stateType, this);
+    return Store.GetState<T>();
+  }
+```
+
+### Pipeline
+
+**TimeWarp.State** uses **TimeWarp.Mediator 15.0.0-beta.5** with compile-time generated registration and named pipelines — not MediatR, and not reflection-based `AddMediator()`.
+
+Hosts reference `TimeWarp.Mediator` (contracts and the bundled analyzer) and `TimeWarp.Mediator.Generators`, then call `AddGeneratedMediator<ClientPipeline>()` for the Blazor/WASM client store pipeline. The generated extension is `internal` in `TimeWarp.Mediator.Generated` (or in `TimeWarpMediatorNamespace` when that property is set). Import that namespace; implicit usings do not include it. Separate server API hosts that handle requests in their own compilation unit call `AddGeneratedMediator<ServerPipeline>()` and send with `ISender<ServerPipeline>`. A library that must not emit a mediator references `TimeWarp.Mediator` only. `TimeWarpMediatorAssembly=false` does not stop the generator from emitting.
+
+Library membership is declared with assembly attributes:
+
+* `[assembly: MediatorAssembly]`
+* `[assembly: MediatorScope(typeof(ClientPipeline))]`
+* `[assembly: MediatorBehavior(...)]`
+
+Hosts add their own behaviors with `[assembly: MediatorBehavior(typeof(MyBehavior<,>), order: 500+, Scope = typeof(ClientPipeline))]`.
+
+`AddTimeWarpState` configures options and applies the generated state registrations for `TimeWarpStateOptions.Assemblies`. It does **not** register mediator pipeline behaviors. Blazor hosts also call `AddTimeWarpStateBlazor`.
+
+Extend the pipeline by implementing `IPipelineBehavior<TRequest, TResponse>` (TimeWarp.Mediator). `Handle` returns `ValueTask<TResponse>` and takes `MessageHandlerDelegate<TRequest, TResponse>`. Call `next(request, cancellationToken)`. 15.0 does not register `IPipelineBehavior<,>` in the container. `LogTimeWarpStateMiddleware` reads the host's `MediatorManifest.Json` (version 2: kind, scope, behaviors in pipeline order). The generated manifest type is internal to the emitting assembly, so a library takes the JSON string.
+See [`tests/test-app/test-app-client/features/event-stream/pipeline/event-stream-behavior.cs`](https://github.com/TimeWarpEngineering/timewarp-state/blob/master/tests/test-app/test-app-client/features/event-stream/pipeline/event-stream-behavior.cs) for an example.
+
+### Behaviors/Middleware
+
+TimeWarp.State ships with the following ClientPipeline middleware (declared via `[assembly: MediatorBehavior]` on the library).
+
+#### StateTransactionBehavior
+
+To ensure your application is in a known good state the `StateTransactionBehavior` creates a clone of the `State` prior to processing the `Action` and installs that clone as the live state.
+If the action fails or is cancelled, and the store holds that action's clone, the behavior restores the pre-action state.
+If another action on the same state has installed a newer clone, the behavior leaves the newer state in place and logs that a concurrent action advanced the state.
+Overlapping actions are not serialized, and the behavior does not wait on a lock. Handlers re-read the store for each access. A failure rolls back only its own clone, so one action cannot discard another action's committed clone. In-place writes on the live clone are part of that clone: the action that installed it still restores the snapshot when its handler fails.
+
+#### RenderSubscriptionsPostProcessor
+
+When a component accesses `State`, a subscription is added.
+The `RenderSubscriptionsPostProcessor` will iterate over these subscriptions and re-render those components that return true for ShouldReRender.
+So you don't have to worry about where to call `StateHasChanged` and still have the ability to finely control re-rendering.
+
+Apply `[SuppressRender]` to an action type that must never re-render subscribers. The check is cached per closed generic. `IInternalAction` still re-renders (ActionTracking and timer UI). `RenderSubscriptionContext.EnsureAction` is obsolete: it keys by the in-flight instance and is cleared when the pipeline completes.
+
+The action log, state tree, and diff live in the companion [DevTools](topics/devtools.md) app, fed by [telemetry](topics/telemetry.md).
+
+### JavaScript Interop
+
+TimeWarp.State also uses the same "Command Pattern" for JavaScript interoperability.
+The JavaScript creates a request and dispatches it to Blazor where it is added to the pipeline.
+Handlers on the Blazor side can callback to the JavaScript side if needed.
+
+[!include[Terminology](partials/terminology.md)]
+
+### PureFunctions vs NonPureFunctions
+
+TimeWarp.State does not distinguish between these.
+As they are processed via the pipeline the same.
+Thus, async calls to fetch data, send emails, or just update local state
+are implemented in the same manner. Although the developer **should** be aware when Handlers have side effects and
+if the developer chose they could mark the Requests as such. For example **IActionWithSideEffect**
+
+[!include[Acknowledgements](partials/acknowledgements.md)]
+
+#### Footnotes:
+
+[^1]: https://github.com/TimeWarpEngineering/timewarp-mediator
+
+[^2]: https://redux.js.org/
+
+[^3]: https://en.wikipedia.org/wiki/Command_pattern

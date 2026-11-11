@@ -1,0 +1,10 @@
+@namespace Test.App.Components
+
+<Router AppAssembly=@typeof(Program).Assembly AdditionalAssemblies=@(new[] { typeof(Client.Program).Assembly })>
+  <Found Context="routeData">
+    <RouteView RouteData=@routeData DefaultLayout=@typeof(Layout.MainLayout) />
+    <FocusOnNavigate RouteData=@routeData Selector="h1" />
+  </Found>
+</Router>
+<TimeWarpJavaScriptInterop @rendermode=InteractiveAuto />
+<TimeWarpPageRenderNotifier @rendermode=InteractiveAuto Nonce=@Guid.NewGuid() />

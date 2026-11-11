@@ -1,0 +1,81 @@
+#region Purpose
+// Shared Playwright helpers for the E2E tests.
+#endregion
+
+#region Design
+// WaitTillBlazorWasmIsDownloadedAsync polls localStorage for a blazor-resource-hash key (10 tries, 1 s apart) so a
+// reload comes up in WebAssembly mode. ValidateRenderModesAsync reads the data-qa render-mode spans every test page
+// shows.
+#endregion
+
+namespace Test.App.EndToEnd.Tests;
+
+public static class PageUtilities
+{
+  private static ILocator CurrentRenderModeLocator(IPage page)
+  {
+    return page.Locator("[data-qa='current-render-mode']");
+  }
+
+  private static ILocator ConfiguredRenderModeLocator(IPage page)
+  {
+    return page.Locator("[data-qa='configured-render-mode']");
+  }
+
+  public static async Task WaitTillBlazorWasmIsDownloadedAsync(IPage page)
+  {
+    const int retries = 10;
+    const int delay = 1000; // 1 second
+
+    for (int i = 0; i < retries; i++)
+    {
+      // Evaluate JavaScript to check for the key in local storage
+      bool isBlazorDownloaded = await page.EvaluateAsync<bool>(@"
+      () => {
+        for (let i = 0; i < localStorage.length; i++) {
+          if (localStorage.key(i).includes('blazor-resource-hash:')) {
+            return true;
+          }
+        }
+        return false;
+      }
+    ");
+
+      if (isBlazorDownloaded)
+      {
+        return;
+      }
+
+      await Task.Delay(delay);
+    }
+
+    throw new Exception("Blazor WASM resource was not downloaded within the expected time.");
+  }
+
+  public static async Task WaitForJavaScriptInteropReadyAsync(IPage page)
+  {
+    await page.WaitForFunctionAsync
+    (
+      """
+      () => window.TimeWarpState
+        && window.TimeWarpState.jsonRequestHandler
+        && typeof window.InteropTest === 'function'
+      """,
+      options: new PageWaitForFunctionOptions { Timeout = 10000 }
+    );
+  }
+
+  public static Task ValidateRenderModesAsync(PlaywrightTest test, IPage page, string expectedCurrentMode)
+  {
+    return ValidateRenderModesAsync(test, page, expectedCurrentMode, ConfiguredRenderModes.ForCurrentRenderMode(expectedCurrentMode));
+  }
+
+  public static async Task ValidateRenderModesAsync(PlaywrightTest test, IPage page, string expectedCurrentMode, string expectedConfiguredMode)
+  {
+    ILocator currentRenderModeLocator = page.Locator("[data-qa='current-render-mode']");
+    ILocator configuredRenderModeLocator = page.Locator("[data-qa='configured-render-mode']");
+
+    await test.Expect(currentRenderModeLocator).ToHaveTextAsync(expectedCurrentMode, new() { Timeout = 10000 });
+    await test.Expect(configuredRenderModeLocator).ToHaveTextAsync(expectedConfiguredMode);
+  }
+}

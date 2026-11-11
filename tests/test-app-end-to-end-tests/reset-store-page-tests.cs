@@ -1,0 +1,55 @@
+#region Purpose
+// E2E test: the Reset Store button clears the store and returns to the home page.
+#endregion
+
+#region Design
+// MSTest + Playwright PageTest against the running test app (Configuration.GetSutBaseUrl). Each test checks Server
+// mode first, waits for the WASM bundle, reloads, and repeats in WebAssembly mode.
+#endregion
+
+namespace ResetStorePageTests;
+
+[TestClass]
+public class ResetStoreTests : PageTest
+{
+  private string SutBaseUrl = null!;
+  private ILocator ResetStoreButtonLocator = null!;
+
+  [TestInitialize]
+  public async Task Initialize()
+  {
+    SutBaseUrl = Configuration.GetSutBaseUrl();
+
+    // Navigate to the Reset Store page
+    await Page.GotoAsync($"{SutBaseUrl}/ResetStorePage");
+
+    // Define the locators for the reset store button
+    ResetStoreButtonLocator = Page.Locator("[data-qa='reset-store-button']");
+  }
+
+  [TestMethod]
+  public async Task TestResetStore()
+  {
+    // Validate Server Side
+    await ValidateResetStore(RenderModes.Server);
+    
+    // Reload
+    await PageUtilities.WaitTillBlazorWasmIsDownloadedAsync(Page);
+    await Page.ReloadAsync();
+    await Page.GotoAsync($"{SutBaseUrl}/ResetStorePage");
+    
+    // Validate in Wasm
+    await ValidateResetStore(RenderModes.Wasm);
+  }
+
+  private async Task ValidateResetStore(string expectedCurrentMode)
+  {
+    await PageUtilities.ValidateRenderModesAsync(this, Page, expectedCurrentMode);
+
+    // Click the reset store button
+    await ResetStoreButtonLocator.ClickAsync();
+
+    // Validate that the route changes to the home page
+    await Expect(Page).ToHaveURLAsync($"{SutBaseUrl}/");
+  }
+}

@@ -1,0 +1,11 @@
+@namespace Test.App.Client.Features.Base.Components
+@inherits BaseComponent
+@using static ApplicationState;
+
+@code {
+  private async Task ButtonClick() => await Sender.Send(new ResetStoreActionSet.Action());
+}
+
+<div id=@Id data-qa=@TestId>
+  <button data-qa="reset-store-button" @onclick=ButtonClick>Reset Store</button>
+</div>

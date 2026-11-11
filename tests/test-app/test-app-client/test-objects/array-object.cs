@@ -1,0 +1,40 @@
+#region Purpose
+// Clone test object with byte, double and int arrays.
+#endregion
+
+#region Design
+// Equals compares the arrays element by element so a deep clone equals the original and a mutated clone does not;
+// GetHashCode is reference-based. Ported from the AnyClone tests.
+#endregion
+
+// ReSharper disable PropertyCanBeMadeInitOnly.Global
+// ReSharper disable ArrangeMethodOrOperatorBody
+// ReSharper disable BaseObjectGetHashCodeCallInGetHashCode
+#pragma warning disable CS8767 // Nullability of reference types in type of parameter doesn't match implicitly implemented member (possibly because of nullability attributes).
+#pragma warning disable CS8765 // Nullability of type of parameter doesn't match overridden member (possibly because of nullability attributes).
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+namespace AnyClone.Tests.TestObjects;
+
+[GenerateClone]
+public class ArrayObject : IEquatable<ArrayObject>
+{
+  public byte[] ByteArray { get; set; }
+  public double[] DoubleArray { get; set; }
+  public int[] IntArray { get; set; }
+
+  public override bool Equals(object aObject)
+  {
+    var basicObject = (ArrayObject)aObject;
+    return Equals(basicObject);
+  }
+
+  public bool Equals(ArrayObject other)
+  {
+    return other.ByteArray.AsEnumerable().SequenceEqual(ByteArray)
+        && other.IntArray.AsEnumerable().SequenceEqual(IntArray)
+        && other.DoubleArray.AsEnumerable().SequenceEqual(DoubleArray)
+        ;
+  }
+
+  public override int GetHashCode() => base.GetHashCode();
+}

@@ -1,0 +1,143 @@
+# Task 104: Remove remaining reflection from TimeWarp.State (EnsureStates, Redux DevTools, middleware logging)
+
+## Description
+
+Task 097 (PR #626, merged as `69dd6d58`) replaced the reflection cloner with a source generator but
+left the other reflection sites in `TimeWarp.State` suppressed and listed them as a follow-up. This
+task removes them, so `TimeWarp.State` (already `<IsAotCompatible>true</IsAotCompatible>` in
+`source/timewarp-state/timewarp-state.csproj:24`) builds with no IL2xxx/IL3xxx warnings and no
+`UnconditionalSuppressMessage` for trimming/AOT.
+
+Filed 2026-10-10 at Steven's request (relayed by Amina). Not launched.
+
+## Reflection sites
+
+From the 097 Results table (`kanban/done/097-proposal-source-generator-for-state-cloning-aot-friendly/task.md`, lines 373-382):
+
+| Site | Reflection | Warnings | Replace with |
+|------|------------|----------|--------------|
+| `source/timewarp-state/extensions/service-collection-extensions.add-timewarp-state.cs` `EnsureStates` (`:85`) | `Assembly.GetTypes()`, `TryAddTransient(Type)` | IL2026, IL2072 (suppressed `:79-80`) | generated state registration |
+| `source/timewarp-state/store/store.redux-dev-tools.cs` `LoadStatesFromJson` | `JsonSerializer.Deserialize<Dictionary<string, object>>` | IL2026, IL3050 (suppressed `:43-44`) | generated DevTools hydration |
+| `source/timewarp-state/store/store.redux-dev-tools.cs` `LoadStateFromJson` | `AppDomain.CurrentDomain.GetAssemblies()` / `GetTypes` / `GetMethod` / `Invoke` (`:90-114`) | IL2026, IL2070, IL2072, IL2075, IL3050 (suppressed `:67-71`) | generated DevTools hydration |
+| `source/timewarp-state/extensions/service-collection-extensions.log-timewarp-state-middleware.cs` `GetComponentOrder` (`:40`) | `Type.GetInterfaces()` | none reported | non-reflection pipeline listing |
+
+097's follow-up text (line 380): "Remove remaining reflection from TimeWarp.State (EnsureStates, redux
+devtools, middleware logging)" — generated state registration, generated DevTools hydration, and a
+non-reflection pipeline listing.
+
+## Fable review finding M1 (task 102)
+
+Task 102: `kanban/done/102-full-codebase-review-by-claude-fable-review-only/` (merged in PR #629, `00ade373`).
+
+Verbatim from `kanban/done/102-full-codebase-review-by-claude-fable-review-only/review-findings.md` lines 57-62 (PR #629, merged as `00ade373`):
+
+> ### M1. Redux DevTools time travel is unreachable from the shipped JavaScript, but keeps the core package's only trim-unsafe reflection
+>
+> - `source/timewarp-state-blazor/wwwroot/typescript/redux-dev-tools.ts:61` onward maps every `DISPATCH` payload (`COMMIT`, `JUMP_TO_STATE`, `IMPORT_STATE`, ...) to `undefined`, and `MessageHandler` ignores unmapped types. Only `START` reaches .NET. `CommitHandler` and `IReduxDevToolsStore.LoadStatesFromJson` are therefore dead at runtime.
+> - `source/timewarp-state/store/store.redux-dev-tools.cs:43-71` carries seven `UnconditionalSuppressMessage` attributes (IL2026, IL2070, IL2072, IL2075, IL3050) to scan `AppDomain.CurrentDomain.GetAssemblies()` and invoke `Hydrate` through `MethodInfo.Invoke`. Together with `EnsureStates` (`service-collection-extensions.add-timewarp-state.cs:85`) these are the only reflection sites left after task 097, and 097's own requirement was "no reflection in TimeWarp.State at all, used or unused".
+> - `State<T>.Hydrate` (`state/state.cs:62`) throws `NotImplementedException` by default; only five states in the repo override it.
+> - Suggestion: pick one. Either finish time travel (map `JUMP_TO_STATE`/`JUMP_TO_ACTION`, have the clone generator emit `Hydrate` so the reflection goes away, and test it), or delete `LoadStatesFromJson`, `Hydrate`, `IState<TState>`, `CommitHandler` and the seven suppressions now. The scratch backlog already lists splitting DevTools into its own package; deleting is consistent with that.
+
+Related Low finding L2 (same file) notes `EnsureStates` (`:85`) `assembly.GetTypes()` throws
+`ReflectionTypeLoadException` on a partially loadable assembly; generated registration removes that too.
+
+## Order
+
+Fable's recommended order (verbatim, `kanban/done/102-full-codebase-review-by-claude-fable-review-only/review-findings.md`, Overall assessment):
+
+> Recommended order of attack: the package dependency (one line), the transaction rollback guard (one `ReferenceEquals` check), a `[CloneShared]`-style attribute or equivalent for injected members, then the DevTools and persistence dead paths, then `IsAotCompatible` on the two remaining runtime packages.
+
+Filed tasks in that order: 105 (H1, package dependency) -> 106 (H2, rollback guard) -> 107 (H3, share-by-reference attribute) -> 104 and 109 M1/M9 (dead DevTools and persistence paths) -> 109 M2 (AOT checks on Blazor and Plus). 108 (H4) and the remaining Medium items are not in Fable's ordered list; schedule them after 107.
+
+## Scope update (2026-10-12, cockpit, before launch)
+
+Task 112 (PR #640, merged `7ceb5225`) took the **delete** branch of M1: `store.redux-dev-tools.cs`,
+`IReduxDevToolsStore`, `LoadStatesFromJson`, `State<T>.Hydrate`, `CommitHandler`, and their seven
+suppressions are gone, and the whole Redux DevTools feature with them. The companion DevTools app
+(103 / 113 / 117) is the replacement. Do not re-create any of it.
+
+Remaining scope for this task, all in `source/timewarp-state`:
+
+1. `EnsureStates` in `extensions/service-collection-extensions.add-timewarp-state.cs` (`:85`,
+   suppressions `:79-80`): generated state registration replaces `Assembly.GetTypes()` +
+   `TryAddTransient(Type)`.
+2. `GetComponentOrder` in `extensions/service-collection-extensions.log-timewarp-state-middleware.cs`:
+   non-reflection pipeline listing replaces `Type.GetInterfaces()`.
+3. After 1 and 2, `TimeWarp.State` has zero `UnconditionalSuppressMessage` for trimming/AOT.
+
+Out of scope: the justified suppressions in `TimeWarp.State.Plus` (persistence JSON, cacheable
+state) and `TimeWarp.State.Blazor` (render-caller capture, complex-parameter comparison) — those
+were reviewed and kept under task 109 M2. Checklist item 1 (decide M1) and item 3 (DevTools
+hydration) are closed by 112.
+
+## Requirements
+
+- `EnsureStates`: the source generator emits state registration for the states in the compilation
+  (same rule as `StateCloneRegistry`) and `AddTimeWarpState` calls it; no `Assembly.GetTypes()` or `TryAddTransient(Type)`.
+- Redux DevTools hydration: per M1, Steven picks one before implementation:
+  - **Finish:** the generator emits typed hydration (and `Hydrate`) per state, `LoadStatesFromJson`
+    dispatches through it with source-generated JSON (`JsonTypeInfo`), no `Dictionary<string, object>`,
+    no assembly scan, no `MethodInfo.Invoke`; map `JUMP_TO_STATE`/`JUMP_TO_ACTION` in
+    `redux-dev-tools.ts` and test it.
+  - **Delete:** remove `LoadStatesFromJson`, `Hydrate`, `IState<TState>`, `CommitHandler` and the
+    suppressions (consistent with splitting DevTools out; see task 103 for the replacement inspector).
+- `GetComponentOrder`: list pipeline components without `Type.GetInterfaces()` (e.g. generated or
+  declared order metadata).
+- Remove every trimming/AOT `UnconditionalSuppressMessage` in `TimeWarp.State`.
+
+## Checklist
+
+- [x] Decide M1: **delete** — done in task 112 / PR #640
+- [x] Generated state registration replaces `EnsureStates` reflection
+- [x] DevTools hydration deleted with the feature (task 112 / PR #640)
+- [x] Non-reflection pipeline listing replaces `GetComponentOrder`'s `Type.GetInterfaces()`
+- [x] Remove the IL2026/IL2070/IL2072/IL2075/IL3050 suppressions
+- [x] Tests: registration of all states (incl. generic/nested), hydration round-trip (if kept), middleware logging output
+- [x] Docs/release notes for any public API removed
+- [x] Code review
+
+## Acceptance criteria
+
+- `rg -n 'UnconditionalSuppressMessage|GetTypes\(|GetAssemblies\(|GetMethod\(|GetInterfaces\(|\.Invoke\(' source/timewarp-state`
+  finds no trimming/AOT suppressions or reflection calls (delegate `?.Invoke` excluded).
+- A Release build of `source/timewarp-state` with `IsAotCompatible` reports zero IL2xxx/IL3xxx warnings.
+- Existing tests green; new tests cover generated registration (and hydration, if kept).
+- `ganda repo audit` clean.
+
+## Session
+
+- Created: 2026-10-10 (Grok Bot, at Steven's request via Amina; not launched)
+- Implemented: 2026-10-12. Generated `TryAddTransient<T>` registration and a pipeline-behavior registry. Code review stays for the review node.
+- Reviewed: 2026-10-12, review oracle (Claude Opus 5.5) with a general subagent reviewer. Effort 3, 2 rounds, accepted-exceptions.
+- Review oracle: review by implementer-claude (claude, model claude-opus-5-5), session not reported, max-turns 200 — 2026-10-12T14:15:00Z
+
+## Results
+
+`AddTimeWarpState` applies source-generated `TryAddTransient<T>()` registrars. `LogTimeWarpStateMiddleware` matches closed behavior registrations against definitions recorded by `PipelineBehaviorRegistrySourceGenerator`. `TimeWarp.State` no longer suppresses trimming or AOT warnings. No public API was removed. Redux DevTools stays deleted (task 112).
+
+### Review disposition
+
+- Effort 3 (by-diff), roster: general. 2 rounds.
+- Final counts: bug 0; suggestion 3 fixed / 1 wontfix; nit 2 fixed / 1 wontfix; 0 open.
+- Disposition: **accepted-exceptions**. M5 wontfix: the pipeline generator keeps the clone generator's `CompilationProvider` shape. M6 wontfix: the `private protected` naming gap predates this task (097) and belongs to the clone generator.
+- Fixes in 0f1411f8: `StateRegistrationRegistry.Apply` runs `RuntimeHelpers.RunModuleConstructor` before applying registrars, release notes and `cloning.md` list the behavior changes and the generator requirement, `GetComponentOrder` remarks, and the pipeline generator checks that the registry type exists.
+- Artifacts: `review/review-framework.md`, `review/round-1/` (general, merged), `review/round-2/` (general, merged), `review/disposition.md`.
+
+### How to validate
+
+Smoke:
+
+```bash
+dotnet build source/timewarp-state/timewarp-state.csproj -c Release --nologo
+rg -n 'UnconditionalSuppressMessage|GetTypes\(|GetAssemblies\(|GetMethod\(|GetInterfaces\(|\.Invoke\(' source/timewarp-state
+dotnet test tests/timewarp-state-tests/timewarp-state-tests.csproj --nologo
+dotnet test tests/timewarp-state-source-generator-tests/timewarp-state-source-generator-tests.csproj --nologo
+ganda repo audit
+```
+
+Expect: the Release build reports zero IL2xxx/IL3xxx warnings. `rg` prints only `configureTimeWarpStateOptionsAction?.Invoke` in `service-collection-extensions.add-timewarp-state.cs`. Both test projects pass, including nested, generic-base, closed `ICloneable`, and host-registration cases, plus the middleware order log. `ganda repo audit` exits 0.
+
+## Notes
+
+- Related: 097 (done; source), 102 M1 (done; finding), 103 (companion DevTools app), 109 (Medium
+  findings batch; its M1 item points here), 109 M2 (AOT on Blazor and Plus is separate).

@@ -1,0 +1,46 @@
+#region Purpose
+// Entry point for the action-tracking sample.
+#endregion
+
+#region Design
+// Registers an HttpClient for the host base address and AddGeneratedMediator<ClientPipeline>(). The
+// ActiveActionBehavior comes from mediator-behaviors.cs. AddTimeWarpState scans this assembly and the
+// TimeWarp.State.Plus assembly. AddTimeWarpStateBlazor registers render subscriptions.
+#endregion
+
+namespace Sample02Wasm;
+
+public class Program
+{
+  public static async Task Main(string[] args)
+  {
+    var builder = WebAssemblyHostBuilder.CreateDefault(args);
+    builder.RootComponents.Add<App>("#app");
+    builder.RootComponents.Add<HeadOutlet>("head::after");
+
+    builder.Services.AddScoped
+    (
+      sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) }
+    );
+    
+    // AddGeneratedMediator<ClientPipeline>() is emitted by the TimeWarp.Mediator.Generators source
+    // generator into this host assembly. Pipeline behaviors are declared at compile time via
+    // [assembly: MediatorBehavior] (see mediator-behaviors.cs).
+    builder.Services.AddGeneratedMediator<ClientPipeline>();
+
+    builder.Services.AddTimeWarpState
+    (
+      options =>
+      {
+        options.Assemblies = new[]
+        {
+          typeof(Program).Assembly,
+          typeof(TimeWarp.State.Plus.AssemblyMarker).Assembly
+        };
+      }
+    );
+    builder.Services.AddTimeWarpStateBlazor();
+
+    await builder.Build().RunAsync();
+  }
+}

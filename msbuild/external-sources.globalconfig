@@ -1,0 +1,29 @@
+# Global analyzer config for compiled sources that live outside this repository.
+#
+# Some packages inject source files into the compilation from the NuGet cache (Fixie adds
+# build/Fixie.Main.cs to every test project). The repo .editorconfig cannot reach paths
+# outside the worktree. Restores in this repo use artifacts/nuget-packages, which is inside
+# the worktree, so .editorconfig excludes that folder itself. This global config still covers
+# a compile that resolves packages from a cache outside the worktree. Settings in
+# .editorconfig take precedence over a global config, so the repo's own .cs files still get
+# TWA0004 = error from .editorconfig.
+is_global = true
+
+dotnet_diagnostic.TWA0004.severity = none
+
+# Razor C# is a source-generator tree, and that tree does not carry EditorConfig diagnostic
+# severities. A [*.razor] or [*.cs] entry does not silence TWA0036 there; these global entries
+# do (task 132). .editorconfig has no [*.razor] block for that reason. These rules stay off
+# for the same reason as in .editorconfig: this library does not enable the
+# Architecture-app TWA ids. TWA0004's reporter is TimeWarp.SourceGenerators (task 153).
+# .editorconfig still wins for in-repo .cs files, including TWA0004 = error.
+dotnet_diagnostic.TWA0025.severity = none
+dotnet_diagnostic.TWA0026.severity = none
+dotnet_diagnostic.TWA0027.severity = none
+dotnet_diagnostic.TWA0028.severity = none
+dotnet_diagnostic.TWA0032.severity = none
+dotnet_diagnostic.TWA0033.severity = none
+dotnet_diagnostic.TWA0034.severity = none
+dotnet_diagnostic.TWA0035.severity = none
+dotnet_diagnostic.TWA0036.severity = none
+dotnet_diagnostic.TWA0037.severity = none

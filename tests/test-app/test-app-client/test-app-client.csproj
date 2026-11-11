@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <AssemblyName>Test.App.Client</AssemblyName>
+    <NoDefaultLaunchSettingsFile>true</NoDefaultLaunchSettingsFile>
+    <StaticWebAssetProjectMode>Default</StaticWebAssetProjectMode>
+    <RootNamespace>Test.App.Client</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="timewarp-heroicons" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Configuration" />
+    <!-- The consuming app owns the TimeWarp.Mediator source generator: it runs here and this app's
+         AddGeneratedMediator<ClientPipeline>() call registers handlers from this app plus the
+         referenced TimeWarp.State, TimeWarp.State.Blazor and TimeWarp.State.Plus assemblies. -->
+    <PackageReference Include="TimeWarp.Mediator" />
+    <PackageReference Include="TimeWarp.Mediator.Generators" PrivateAssets="all" />
+<!--    <PackageReference Include="TimeWarp.State" />-->
+<!--    <PackageReference Include="TimeWarp.State.Plus" />-->
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\source\timewarp-state\timewarp-state.csproj" />
+    <ProjectReference Include="..\..\..\source\timewarp-state-blazor\timewarp-state-blazor.csproj" />
+    <ProjectReference Include="..\..\..\source\timewarp-state-plus\timewarp-state-plus.csproj" />
+    <ProjectReference Include="..\..\..\source\timewarp-state-analyzer\timewarp-state-analyzer.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\..\source\timewarp-state-source-generator\timewarp-state-source-generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\test-app-contracts\test-app-contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Client.Integration.Tests" />
+  </ItemGroup>
+  
+  <PropertyGroup>
+    <!-- Persist the source generator (and other) files to disk -->
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <!-- 👇 The "base" path for the source generators -->
+    <GeneratedFolder>generated</GeneratedFolder>
+    <!-- 👇 Write the output for each target framework to a different sub-folder -->
+    <CompilerGeneratedFilesOutputPath>$(GeneratedFolder)</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 👇 Exclude everything in the base folder -->
+    <Compile Remove="$(GeneratedFolder)/**/*.cs" />
+  </ItemGroup>
+</Project>

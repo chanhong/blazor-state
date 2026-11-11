@@ -1,0 +1,78 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+  </Configurations>
+  <Folder Name="/Samples/" />
+  <Folder Name="/Samples/00-Server/">
+    <Project Path="samples\00-state-action-handler\server\sample-00-server\sample-00-server.csproj" />
+  </Folder>
+  <Folder Name="/Samples/00-Wasm/">
+    <Project Path="samples\00-state-action-handler\wasm\sample-00-wasm\sample-00-wasm.csproj" />
+  </Folder>
+  <Folder Name="/Samples/02-ActionTracking/">
+    <Project Path="samples\02-action-tracking\wasm\sample-02-wasm\sample-02-wasm.csproj" />
+  </Folder>
+  <Folder Name="/Samples/03-Routing/">
+    <Project Path="samples\03-routing\wasm\sample-03-wasm\sample-03-wasm.csproj" />
+  </Folder>
+  <Folder Name="/Samples/04-Telemetry/">
+    <Project Path="samples/04-telemetry/apphost/sample-04-apphost.csproj" />
+    <Project Path="samples/04-telemetry/server/sample-04-server/sample-04-server.csproj" />
+    <Project Path="samples/04-telemetry/wasm/sample-04-wasm/sample-04-wasm.csproj" />
+  </Folder>
+  <Folder Name="/Samples/05-Persistence/">
+    <Project Path="samples/05-persistence/wasm/sample-05-wasm/sample-05-wasm.csproj" />
+  </Folder>
+  <Folder Name="/Samples/06-RenderControl/">
+    <Project Path="samples/06-render-control/wasm/sample-06-wasm/sample-06-wasm.csproj" />
+  </Folder>
+  <Folder Name="/Samples/07-Console/">
+    <Project Path="samples/07-console/sample-07-console/sample-07-console.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="nuget.config" />
+  </Folder>
+  <Folder Name="/source/">
+    <Project Path="source/timewarp-state/timewarp-state.csproj">
+      <BuildDependency Project="source/timewarp-state-analyzer/timewarp-state-analyzer.csproj" />
+      <BuildDependency Project="source/timewarp-state-analyzer-code-fixes/timewarp-state-analyzer-code-fixes.csproj" />
+    </Project>
+    <Project Path="source/timewarp-state-blazor/timewarp-state-blazor.csproj" />
+    <Project Path="source/timewarp-state-devtools-app/timewarp-state-devtools-app.csproj" />
+    <Project Path="source/timewarp-state-devtools-export/timewarp-state-devtools-export.csproj" />
+    <Project Path="source/timewarp-state-devtools-hosting/timewarp-state-devtools-hosting.csproj" />
+    <Project Path="source/timewarp-state-devtools-wasm/timewarp-state-devtools-wasm.csproj" />
+    <Project Path="source/timewarp-state-devtools/timewarp-state-devtools.csproj" />
+    <Project Path="source/timewarp-state-plus/timewarp-state-plus.csproj" />
+    <Project Path="source/timewarp-state-telemetry/timewarp-state-telemetry.csproj" />
+    <Project Path="source/timewarp-state-analyzer/timewarp-state-analyzer.csproj" />
+    <Project Path="source/timewarp-state-analyzer-code-fixes/timewarp-state-analyzer-code-fixes.csproj" />
+    <Project Path="source/timewarp-state-source-generator/timewarp-state-source-generator.csproj" />
+    <Project Path="source/timewarp-state-policies/timewarp-state-policies.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="tests/timewarp-state-devtools-inspected-app/timewarp-state-devtools-inspected-app.csproj" />
+    <Project Path="tests/timewarp-state-devtools-isolation-tests/timewarp-state-devtools-isolation-tests.csproj" />
+    <Project Path="tests/timewarp-state-devtools-tests/timewarp-state-devtools-tests.csproj" />
+    <Project Path="tests/timewarp-state-packaging-tests/timewarp-state-packaging-tests.csproj" />
+    <Project Path="tests/timewarp-state-source-generator-tests/timewarp-state-source-generator-tests.csproj" />
+    <Project Path="tests/timewarp-state-telemetry-tests/timewarp-state-telemetry-tests.csproj" />
+    <Project Path="tests\client-integration-tests\client-integration-tests.csproj" />
+    <Project Path="tests\test-app-architecture-tests\test-app-architecture-tests.csproj" />
+    <Project Path="tests\test-app-end-to-end-tests\test-app-end-to-end-tests.csproj" />
+    <Project Path="tests\timewarp-state-analyzer-tests\timewarp-state-analyzer-tests.csproj" />
+    <Project Path="tests\timewarp-state-plus-tests\timewarp-state-plus-tests.csproj" />
+    <Project Path="tests\timewarp-state-tests\timewarp-state-tests.csproj" />
+  </Folder>
+  <Folder Name="/Tests/test-app/">
+    <Project Path="tests\test-app\test-app-client\test-app-client.csproj" />
+    <Project Path="tests\test-app\test-app-contracts\test-app-contracts.csproj" />
+    <Project Path="tests\test-app\test-app-server\test-app-server.csproj" />
+  </Folder>
+</Solution>

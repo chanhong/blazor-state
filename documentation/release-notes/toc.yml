@@ -1,0 +1,50 @@
+- name: Release 12.0.0-beta.18
+  topicUid: TimeWarpState:Release.12.0.0-beta.18.md
+- name: Release 12.0.0-beta.17
+  topicUid: TimeWarpState:Release.12.0.0-beta.17.md
+- name: Release 12.0.0-beta.16
+  topicUid: TimeWarpState:Release.12.0.0-beta.16.md
+- name: Release 12.0.0-beta.15
+  topicUid: TimeWarpState:Release.12.0.0-beta.15.md
+- name: Release 12.0.0-beta.14
+  topicUid: TimeWarpState:Release.12.0.0-beta.14.md
+- name: Release 12.0.0-beta.13
+  topicUid: TimeWarpState:Release.12.0.0-beta.13.md
+- name: Release 12.0.0-beta.12
+  topicUid: TimeWarpState:Release.12.0.0-beta.12.md
+- name: Release 12.0.0-beta.11
+  topicUid: TimeWarpState:Release.12.0.0-beta.11.md
+- name: Release 12.0.0-beta.10
+  topicUid: TimeWarpState:Release.12.0.0-beta.10.md
+- name: Release 12.0.0-beta.9
+  topicUid: TimeWarpState:Release.12.0.0-beta.9.md
+- name: Release 12.0.0-beta.8
+  topicUid: TimeWarpState:Release.12.0.0-beta.8.md
+- name: Release 12.0.0-beta.7
+  topicUid: TimeWarpState:Release.12.0.0-beta.7.md
+- name: Release 12.0.0-beta.6
+  topicUid: TimeWarpState:Release.12.0.0-beta.6.md
+- name: Release 12.0.0-beta.5
+  topicUid: TimeWarpState:Release.12.0.0-beta.5.md
+- name: Release 11.0.0
+  topicUid: TimeWarpState:Release.11.0.0.md
+- name: Release 10.0.0
+  topicUid: BlazorState:Release.10.0.0.md
+- name: Release 9.0.0
+  topicUid: BlazorState:Release.9.0.0.md
+- name: Release 8.0.0
+  topicUid: BlazorState:Release.8.0.0.md
+- name: Release 7.0.0
+  topicUid: BlazorState:Release.7.0.0.md  
+- name: Release 6.0.0
+  topicUid: BlazorState:Release.6.0.0.md
+- name: Release 5.0.0
+  topicUid: BlazorState:Release.5.0.0.md
+- name: Release 4.0.0
+  topicUid: BlazorState:Release.4.0.0.md
+- name: Release 3.0.0
+  topicUid: BlazorState:Release.3.0.0.md
+- name: Release 2.0.0
+  topicUid: BlazorState:Release.2.0.0.md
+- name: Release 1.0.0
+  topicUid: BlazorState:Release.1.0.0.md

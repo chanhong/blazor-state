@@ -1,0 +1,53 @@
+#region Purpose
+// CompleteProcessing action set: removes a finished action from ActionTrackingState's active list.
+#endregion
+
+#region Design
+// An IInternalAction, so action tracking does not track its own bookkeeping. A missing action is logged with the
+// current active list and then throws, to surface start/complete mismatches.
+#endregion
+
+namespace TimeWarp.Features.ActionTracking;
+
+public partial class ActionTrackingState
+{
+  public static class CompleteProcessingActionSet
+  {
+    public sealed class Action : IInternalAction
+    {
+      public IAction TheAction { get; }
+      public Action(IAction theAction)
+      {
+        TheAction = theAction;
+      }
+    }
+    
+    public sealed class Handler : StateActionHandler<Action>
+    {
+      private readonly ILogger<Handler> Logger;
+      public Handler(IStore store, ILogger<Handler> logger) : base(store)
+      {
+        Logger = logger;
+      }
+      private ActionTrackingState ActionTrackingState => Store.GetState<ActionTrackingState>();
+
+      public override ValueTask Handle(Action action, CancellationToken cancellationToken)
+      {
+        bool wasRemoved = ActionTrackingState.ActiveActionList.Remove(action.TheAction);
+        if (wasRemoved) return default;
+
+        // I want to know if this ever happens
+        Logger.LogDebug
+          (message: "Action {action} was not found in the active action list.", action.TheAction.GetType().FullName);
+
+        string? activeActions = ActionTrackingState.ActiveActionList
+          .Select(a => a.GetType().FullName)
+          .Aggregate((current, next) => $"{current}, {next}");
+
+        Logger.LogDebug(message: "Active actions: {activeActions}", activeActions);
+
+        throw new InvalidOperationException("Action was not found in the active action list.");
+      }
+    }
+  }
+}

@@ -1,0 +1,86 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Title>TimeWarp State</Title>
+    <Description>State management for .NET. Blazor components, JavaScript interop, and render subscriptions are in TimeWarp.State.Blazor.</Description>
+    <PackageId>TimeWarp.State</PackageId>
+    <AssemblyName>TimeWarp.State</AssemblyName>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageTags>TimeWarp.State; TimeWarp-State; TimeWarpState; State; TimeWarp.Mediator; Mediator; Pipeline; Redux; Flux; Console</PackageTags>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <IncludeBuildOutput>true</IncludeBuildOutput>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Trim and AOT analysis">
+    <!-- TimeWarp.State ships no trim or AOT suppression. The trim and AOT analyzers run on every build and
+         their warnings are errors, so a regression fails the build instead of a trimmed app at run time.
+         State DI registration and pipeline listing are source-generated. -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <WarningsAsErrors>$(WarningsAsErrors);IL2026;IL2046;IL2050;IL2055;IL2057;IL2058;IL2059;IL2060;IL2061;IL2062;IL2063;IL2064;IL2065;IL2066;IL2067;IL2068;IL2069;IL2070;IL2071;IL2072;IL2073;IL2074;IL2075;IL2076;IL2077;IL2078;IL2079;IL2080;IL2081;IL2082;IL2083;IL2084;IL2085;IL2086;IL2087;IL2088;IL2089;IL2090;IL2091;IL2092;IL2093;IL2094;IL2095;IL2096;IL2097;IL2098;IL2099;IL2103;IL2104;IL2111;IL3050;IL3051;IL3056</WarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput)</TargetsForTfmSpecificBuildOutput>
+    <PackageReadmeFile>readme.md</PackageReadmeFile>
+    <PackageReleaseNotes>https://timewarpengineering.github.io/timewarp-state/Overview.html</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="JetBrains.Annotations" PrivateAssets="all"/>
+    <!--
+      The library references TimeWarp.Mediator (contracts plus the bundled TWM analyzer).
+      It must NOT reference TimeWarp.Mediator.Generators: the generator emits a mediator into
+      this assembly, which would collide with the consuming app's own generated mediator.
+      TimeWarpMediatorAssembly=false does not stop that emission. Each host references
+      TimeWarp.Mediator and TimeWarp.Mediator.Generators and calls
+      AddGeneratedMediator&lt;ClientPipeline&gt;(). This assembly joins that graph through
+      [assembly: MediatorAssembly] and MediatorScope(ClientPipeline).
+    -->
+    <PackageReference Include="TimeWarp.Mediator"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ProjectReferences to ensure analyzers are built before packing -->
+    <ProjectReference Include="..\timewarp-state-analyzer\timewarp-state-analyzer.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\timewarp-state-analyzer-code-fixes\timewarp-state-analyzer-code-fixes.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\timewarp-state-source-generator\timewarp-state-source-generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Test.App.Client.Integration.Tests"/>
+    <InternalsVisibleTo Include="Client.Integration.Tests"/>
+    <InternalsVisibleTo Include="timewarp-state-tests"/>
+    <InternalsVisibleTo Include="TimeWarp.State.Blazor"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(RepositoryRoot)readme.md" Pack="true" PackagePath=""/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(ArtifactsDirectory)analyzers\$(Configuration)\netstandard2.0\timewarp-state-analyzer.dll" Pack="true" PackagePath="analyzers\dotnet\cs"/>
+    <None Include="$(ArtifactsDirectory)analyzers\$(Configuration)\netstandard2.0\timewarp-state-source-generator.dll" Pack="true" PackagePath="analyzers\dotnet\cs"/>
+    <!-- Code fixes for the analyzer rules (TWS0013). Loaded by the IDE only. -->
+    <None Include="$(ArtifactsDirectory)analyzers\$(Configuration)\netstandard2.0\timewarp-state-analyzer-code-fixes.dll" Pack="true" PackagePath="analyzers\dotnet\cs"/>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Content Include="build\**" Pack="false"/>
+    <Content Include="buildMultiTargeting\**" Pack="false"/>
+    <Content Include="buildTransitive\**" Pack="false"/>
+  </ItemGroup>
+
+</Project>

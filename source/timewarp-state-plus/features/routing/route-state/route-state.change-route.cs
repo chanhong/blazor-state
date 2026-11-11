@@ -1,0 +1,53 @@
+#region Purpose
+// ChangeRoute action set: navigates to a new route through NavigationManager.
+#endregion
+
+#region Design
+// Compares absolute URIs and only navigates when they differ, avoiding redundant navigation.
+#endregion
+
+namespace TimeWarp.Features.Routing;
+
+public partial class RouteState
+{
+  public static class ChangeRouteActionSet
+  {
+    public sealed class Action : IAction
+    {
+      public Action(string newRoute) 
+      {
+        NewRoute = newRoute;
+      }
+      public string NewRoute { get; }
+    }
+
+    public sealed class Handler : StateActionHandler<Action>
+    {
+      private readonly ILogger Logger;
+      private readonly NavigationManager NavigationManager;
+      public Handler
+      (
+        IStore store,
+        NavigationManager navigationManager,
+        ILogger<Handler> logger
+      ) : base(store)
+      {
+        NavigationManager = navigationManager;
+        Logger = logger;
+      }
+
+      public override ValueTask Handle(Action action, CancellationToken cancellationToken)
+      {
+        Logger.LogDebug("ChangeRouteAction.Handle NewRoute:{NewRoute}", action.NewRoute);
+        string newAbsoluteUri = NavigationManager.ToAbsoluteUri(action.NewRoute).ToString();
+        string absoluteUri = NavigationManager.Uri;
+
+        if (absoluteUri != newAbsoluteUri)
+        {
+          NavigationManager.NavigateTo(newAbsoluteUri);
+        }
+        return default;
+      }
+    }
+  }
+}

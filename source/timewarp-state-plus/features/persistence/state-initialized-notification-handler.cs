@@ -1,0 +1,46 @@
+#region Purpose
+// When a state finishes initializing, triggers loading it from storage if it is marked [PersistentState].
+#endregion
+
+#region Design
+// Returns early for non-persistent states (the common case). Otherwise it sends LoadPersistentStateRequest on the
+// ClientPipeline, whose handler is linked.
+#endregion
+
+namespace TimeWarp.State.Plus.PersistentState;
+
+// Disambiguate from Microsoft.AspNetCore.Components.PersistentStateAttribute (added in .NET 10).
+using PersistentStateAttribute = TimeWarp.Features.Persistence.PersistentStateAttribute;
+
+public class StateInitializedNotificationHandler : INotificationHandler<StateInitializedNotification>
+{
+  private readonly ISender<ClientPipeline> Sender;
+  private readonly ILogger<StateInitializedNotificationHandler> Logger;
+  public StateInitializedNotificationHandler
+  (
+    ISender<ClientPipeline> sender,
+    ILogger<StateInitializedNotificationHandler> logger
+  )
+  {
+    Sender = sender;
+    Logger = logger;
+  }
+
+  [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "PersistentStateAttribute is on state types the clone generator roots. The attribute type is referenced by this assembly.")]
+  [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "PersistentStateAttribute is on state types the clone generator roots. The attribute type is referenced by this assembly.")]
+  public async ValueTask Handle(StateInitializedNotification stateInitializedNotification, CancellationToken cancellationToken)
+  {
+    // Only persistent states auto-load; skip the dispatch entirely for the common (non-persistent) case.
+    if (stateInitializedNotification.StateType.GetCustomAttribute<PersistentStateAttribute>() is null) return;
+
+    Logger.LogDebug
+    (
+      EventIds.StateInitializedNotificationHandler_Handling,
+      message: "StateInitializedNotificationHandler: {StateTypeName}",
+      stateInitializedNotification.StateType.Name
+    );
+
+    // Load via a hand-written mediator request whose handler IS linked (see LoadPersistentStateRequest).
+    await Sender.Send(new LoadPersistentStateRequest(stateInitializedNotification.StateType), cancellationToken);
+  }
+}

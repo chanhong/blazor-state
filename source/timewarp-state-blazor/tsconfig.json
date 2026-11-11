@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "declaration": true,
+    "declarationDir": "wwwroot/types",
+    "rootDir": "wwwroot/typescript",
+    "moduleResolution": "bundler",
+    "sourceMap": true,
+    "outDir": "wwwroot/js",
+    "removeComments": true,
+    "noEmitOnError": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Type Checking */
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "strictBindCallApply": false,
+    "noImplicitThis": false,
+    "skipLibCheck": false
+  },
+  "include": [
+    "wwwroot/typescript/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts",
+    "wwwroot/js",
+    "wwwroot/types"
+  ]
+}

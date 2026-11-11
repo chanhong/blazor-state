@@ -1,0 +1,30 @@
+@namespace TimeWarp.Features.Routing
+@inherits TimeWarp.State.TimeWarpStateComponent
+
+@*
+    A component that automatically updates the page title and route state.
+    This component wraps the built-in PageTitle component and ensures the RouteState
+    is updated whenever the title changes.
+
+    Usage:
+    <TwPageTitle>Your Page Title</TwPageTitle>
+*@
+
+<PageTitle>@ChildContent</PageTitle>
+
+@code {
+    private RouteState RouteState => GetState<RouteState>(placeSubscription:false); //Don't subscribe to avoid infinite recursion
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+        {
+          await RouteState.PushRouteInfo();
+        }
+    }
+}

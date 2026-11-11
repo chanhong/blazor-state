@@ -1,0 +1,21 @@
+<Project>
+  <!-- Repository path definitions - can be imported standalone without build configuration -->
+  <PropertyGroup Label="Repository Structure">
+    <RepositoryName>timewarp-state</RepositoryName>
+    <RepositoryRoot>$(MSBuildThisFileDirectory)../</RepositoryRoot>
+    <SolutionFile>$(RepositoryRoot)timewarp-state.slnx</SolutionFile>
+    <SourceDirectory>$(RepositoryRoot)source/</SourceDirectory>
+    <TestsDirectory>$(RepositoryRoot)tests/</TestsDirectory>
+    <SamplesDirectory>$(RepositoryRoot)samples/</SamplesDirectory>
+    <ScriptsDirectory>$(RepositoryRoot)scripts/</ScriptsDirectory>
+    <ToolsDirectory>$(RepositoryRoot)tools/</ToolsDirectory>
+    <ArtifactsDirectory>$(RepositoryRoot)artifacts/</ArtifactsDirectory>
+    <PackagesDirectory>$(ArtifactsDirectory)packages/</PackagesDirectory>
+    <LocalNuGetFeed>$(PackagesDirectory)</LocalNuGetFeed>
+    <!-- Restore target for every project in this repo. Not the machine-wide ~/.nuget/packages folder. -->
+    <IsolatedNuGetPackagesDirectory>$(ArtifactsDirectory)nuget-packages/</IsolatedNuGetPackagesDirectory>
+    <LocalNuGetCache>$(RepositoryRoot)local-nuget-feed/</LocalNuGetCache>
+    <!-- Product package version SSOT. source/Directory.Build.props <Version> must match. -->
+    <TimeWarpStateVersion>12.0.0-beta.17</TimeWarpStateVersion>
+  </PropertyGroup>
+</Project>

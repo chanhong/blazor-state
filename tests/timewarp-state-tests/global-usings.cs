@@ -1,0 +1,32 @@
+#region Purpose
+// Global usings for the TimeWarp.State unit tests.
+#endregion
+
+#region Design
+// Trivial; no design decisions.
+#endregion
+
+global using Shouldly;
+global using TimeWarp.Mediator;
+global using TimeWarp.Mediator.Generated;
+global using System.Collections.Concurrent;
+global using System.Linq.Expressions;
+global using System.Reflection;
+global using TimeWarp.Fixie;
+global using TimeWarp.State;
+global using Microsoft.AspNetCore.Components;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging.Abstractions;
+global using Microsoft.JSInterop;
+global using TimeWarp.Features.JavaScriptInterop;
+global using TimeWarp.Features.StateTransactions;
+global using TimeWarp.Features.RenderSubscriptions;
+global using TimeWarp.State.Extensions;
+global using System.Runtime.CompilerServices;
+global using Microsoft.Extensions.Logging;
+global using TimeWarp.Features.Cloning;
+global using System.Collections.Immutable;
+global using System.Collections.Frozen;
+global using SharedTestFixtures;
+global using DevCli;
+global using DevCli.Commands;

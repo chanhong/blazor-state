@@ -1,0 +1,34 @@
+#region Purpose
+// Global usings for the TimeWarp.State.Plus tests.
+#endregion
+
+#region Design
+// PersistentStateAttribute is aliased to TimeWarp's attribute to avoid the ASP.NET Core attribute of the same name.
+#endregion
+
+global using Blazored.LocalStorage;
+global using Blazored.SessionStorage;
+global using FakeItEasy;
+global using Microsoft.AspNetCore.Components;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging;
+global using Microsoft.Extensions.Logging.Abstractions;
+global using Microsoft.Extensions.Options;
+global using Microsoft.JSInterop;
+global using Shouldly;
+global using NetArchTest.Policies;
+global using System.Reflection;
+global using System.Runtime.CompilerServices;
+global using System.Text.Json;
+global using System.Text.Json.Serialization;
+global using TimeWarp.Fixie;
+global using TimeWarp.Features.ActionTracking;
+global using TimeWarp.Features.Persistence;
+global using PersistentStateAttribute = TimeWarp.Features.Persistence.PersistentStateAttribute;
+global using TimeWarp.Features.Routing;
+global using TimeWarp.Mediator;
+global using TimeWarp.State;
+global using TimeWarp.State.Plus;
+global using TimeWarp.State.Plus.Features.Timers;
+global using TimeWarp.State.Policies;
+global using TimeWarp.State.Policies.Extensions;

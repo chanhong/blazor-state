@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <Title>TimeWarp State Blazor</Title>
+    <Description>Blazor components, JavaScript interop, and render subscriptions for TimeWarp.State.</Description>
+    <PackageId>TimeWarp.State.Blazor</PackageId>
+    <AssemblyName>TimeWarp.State.Blazor</AssemblyName>
+    <RootNamespace>TimeWarp.State.Blazor</RootNamespace>
+    <PackageTags>TimeWarp.State; TimeWarp.State.Blazor; Blazor; State; Redux; Flux</PackageTags>
+    <IsPackable>true</IsPackable>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <!-- The SDK default is _content/$(PackageId). The override replaces that whole path, so the _content/ prefix stays in the value. -->
+    <StaticWebAssetBasePath>_content/TimeWarp.State</StaticWebAssetBasePath>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Trim and AOT analysis">
+    <!-- Blazor WebAssembly publishes with trimming on. The trimmer only warns about assemblies that opt in.
+         IL2xxx/IL3xxx are errors here. Remaining reflection is suppressed on the method with a justification. -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <WarningsAsErrors>$(WarningsAsErrors);IL2026;IL2046;IL2050;IL2055;IL2057;IL2058;IL2059;IL2060;IL2061;IL2062;IL2063;IL2064;IL2065;IL2066;IL2067;IL2068;IL2069;IL2070;IL2071;IL2072;IL2073;IL2074;IL2075;IL2076;IL2077;IL2078;IL2079;IL2080;IL2081;IL2082;IL2083;IL2084;IL2085;IL2086;IL2087;IL2088;IL2089;IL2090;IL2091;IL2092;IL2093;IL2094;IL2095;IL2096;IL2097;IL2098;IL2099;IL2103;IL2104;IL2111;IL3050;IL3051;IL3056</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
+    <PackageReference Include="Microsoft.TypeScript.MSBuild">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="TimeWarp.Mediator" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\timewarp-state\timewarp-state.csproj" />
+    <ProjectReference Include="..\timewarp-state-analyzer\timewarp-state-analyzer.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\timewarp-state-source-generator\timewarp-state-source-generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="timewarp-state-tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include=".\readme.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <!-- wwwroot/js and wwwroot/types are tracked in git. Microsoft.TypeScript.MSBuild's CleanTypeScriptOutputs deletes
+       every file listed in tsc-emitted.txt, so a Rebuild (a no-incremental dotnet build) removed them after evaluation
+       had already globbed them as static web assets, and the build failed with "No file exists for the asset".
+       Dropping the list first keeps the tracked files; tsc still rewrites them on every build. (task 148) -->
+  <Target Name="KeepTrackedTypeScriptOutputsOnClean" BeforeTargets="CleanTypeScriptOutputs">
+    <Delete Files="$(IntermediateOutputPath)tsc-emitted.txt" />
+  </Target>
+
+  <Target Name="RemoveTSConfigFileFromPackage" AfterTargets="CompileTypeScriptWithTSConfig">
+    <ItemGroup>
+      <Content Remove="**\tsconfig.json" />
+    </ItemGroup>
+  </Target>
+</Project>

@@ -1,0 +1,123 @@
+#region Purpose
+// Analyzer for State<T> subclasses: T must be the derived class itself (error), except an abstract class whose
+// type argument is its own self-constrained type parameter. Non-abstract subclasses should be sealed (warning).
+#endregion
+
+#region Design
+// An abstract intermediate such as TimeWarpCacheableState<TState> : State<TState> where TState :
+// TimeWarpCacheableState<TState> is allowed. A concrete class, including a concrete generic with the same shape,
+// still reports TWS0010. The check looks at the type parameter's constraint types.
+// Resolves State<T> once per compilation and does nothing when it is absent. Only the first base type in each class
+// declaration is checked.
+#endregion
+
+namespace TimeWarp.State.Analyzer;
+
+[DiagnosticAnalyzer(LanguageNames.CSharp)]
+public class StateInheritanceAnalyzer : DiagnosticAnalyzer
+{
+  public const string InheritanceDiagnosticId = "TWS0010";
+  public const string SealedDiagnosticId = "TWS0011";
+
+  private static readonly LocalizableString InheritanceTitle = "Incorrect State<T> inheritance";
+  private static readonly LocalizableString InheritanceMessageFormat = "The type argument for State<T> must be the derived class itself";
+  private static readonly LocalizableString InheritanceDescription = "When inheriting from State<T>, T must be the name of the derived class.";
+  private const string Category = "Design";
+
+  private static readonly DiagnosticDescriptor InheritanceRule = new(InheritanceDiagnosticId, InheritanceTitle, InheritanceMessageFormat, Category, DiagnosticSeverity.Error, isEnabledByDefault: true, description: InheritanceDescription);
+  private static readonly LocalizableString SealedTitle = "Non-abstract State<T> class should be sealed";
+  private static readonly LocalizableString SealedMessageFormat = "The class '{0}' inheriting from State<T> should be sealed";
+  private static readonly LocalizableString SealedDescription = "Non-abstract classes inheriting from State<T> should be sealed to prevent further inheritance.";
+  private static readonly DiagnosticDescriptor SealedRule = new(SealedDiagnosticId, SealedTitle, SealedMessageFormat, Category, DiagnosticSeverity.Warning, isEnabledByDefault: true, description: SealedDescription);
+
+  public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(InheritanceRule, SealedRule);
+
+  public override void Initialize(AnalysisContext context)
+  {
+    context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
+    context.EnableConcurrentExecution();
+    context.RegisterCompilationStartAction(static compilationStartContext =>
+    {
+      INamedTypeSymbol? timeWarpState = StateSymbolFacts.GetTimeWarpStateType(compilationStartContext.Compilation);
+      if (timeWarpState is null)
+        return;
+
+      compilationStartContext.RegisterSyntaxNodeAction(
+        syntaxContext => AnalyzeNode(syntaxContext, timeWarpState),
+        SyntaxKind.ClassDeclaration);
+    });
+  }
+
+  private static void AnalyzeNode(SyntaxNodeAnalysisContext context, INamedTypeSymbol timeWarpState)
+  {
+    ClassDeclarationSyntax classDeclaration = (ClassDeclarationSyntax)context.Node;
+    BaseTypeSyntax? baseType = classDeclaration.BaseList?.Types.FirstOrDefault();
+
+    if (baseType is null)
+      return;
+
+    INamedTypeSymbol? baseTypeSymbol = context.SemanticModel.GetSymbolInfo(baseType.Type).Symbol as INamedTypeSymbol;
+    if (baseTypeSymbol is null || !StateSymbolFacts.IsTimeWarpState(baseTypeSymbol, timeWarpState))
+      return;
+
+    ITypeSymbol? typeArg = baseTypeSymbol.TypeArguments.FirstOrDefault();
+    if (typeArg is null)
+      return;
+
+    INamedTypeSymbol? derivedTypeSymbol = context.SemanticModel.GetDeclaredSymbol(classDeclaration);
+    if (derivedTypeSymbol is null)
+      return;
+
+    if (!SymbolEqualityComparer.Default.Equals(typeArg, derivedTypeSymbol))
+    {
+      if (!IsAbstractSelfConstrainedIntermediate(derivedTypeSymbol, typeArg))
+      {
+        Diagnostic diagnostic = Diagnostic.Create(InheritanceRule, classDeclaration.Identifier.GetLocation());
+        context.ReportDiagnostic(diagnostic);
+      }
+    }
+
+    if (derivedTypeSymbol is { IsAbstract: false, IsSealed: false })
+    {
+      Diagnostic sealedDiagnostic = Diagnostic.Create(SealedRule, classDeclaration.Identifier.GetLocation(), derivedTypeSymbol.Name);
+      context.ReportDiagnostic(sealedDiagnostic);
+    }
+  }
+
+  // Abstract class C<T> : State<T> where T : C<T> (the type argument slot of the constraint is T).
+  private static bool IsAbstractSelfConstrainedIntermediate(INamedTypeSymbol derivedTypeSymbol, ITypeSymbol typeArg)
+  {
+    if (!derivedTypeSymbol.IsAbstract)
+      return false;
+
+    if (typeArg is not ITypeParameterSymbol typeParameter)
+      return false;
+
+    if (!SymbolEqualityComparer.Default.Equals(typeParameter.ContainingType, derivedTypeSymbol))
+      return false;
+
+    foreach (ITypeSymbol constraintType in typeParameter.ConstraintTypes)
+    {
+      if (constraintType is not INamedTypeSymbol constraintNamedType)
+        continue;
+
+      if (!SymbolEqualityComparer.Default.Equals(constraintNamedType.OriginalDefinition, derivedTypeSymbol))
+        continue;
+
+      if
+      (
+        typeParameter.Ordinal < constraintNamedType.TypeArguments.Length
+        && SymbolEqualityComparer.Default.Equals
+        (
+          constraintNamedType.TypeArguments[typeParameter.Ordinal],
+          typeParameter
+        )
+      )
+      {
+        return true;
+      }
+    }
+
+    return false;
+  }
+}

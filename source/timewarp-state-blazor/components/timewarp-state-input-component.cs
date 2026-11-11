@@ -1,0 +1,93 @@
+#region Purpose
+// Optional base for Blazor input components (InputBase<TValue>) that subscribe to TimeWarp.State, plus the
+// InstanceCounter used to build their Ids.
+#endregion
+
+#region Design
+// Mirrors TimeWarpStateComponent's injection and GetState subscription, but derives from InputBase so form binding
+// and validation keep working. Ids come from a static counter keyed by TValue.
+#endregion
+
+namespace TimeWarp.State;
+
+/// <summary>
+/// A non required Base Class that injects the store pipeline Sender and Store.
+/// And exposes StateHasChanged
+/// </summary>
+/// <remarks>Implements ITimeWarpStateComponent by Injecting</remarks>
+public abstract class TimeWarpStateInputComponent<TValue> : InputBase<TValue>, IDisposable, ITimeWarpStateComponent
+{
+  protected TimeWarpStateInputComponent()
+  {
+    string name = GetType().Name;
+    InstanceCounter.IncrementCount<TValue>();
+    int count = InstanceCounter.GetCount<TValue>();
+    Id = $"{name}-{count}";
+  }
+
+  /// <summary>
+  /// A generated unique Id based on the Class name and number of times they have been created
+  /// </summary>
+  public string Id { get; }
+
+  /// <summary>
+  /// Allows for the Assigning of a value one can use to select an element during automated testing.
+  /// </summary>
+  [Parameter] public string? TestId { get; set; }
+
+  /// <summary>
+  /// The store pipeline sender (<see cref="ClientPipeline"/>). Send actions with <c>Sender.Send(...)</c>.
+  /// </summary>
+  [Inject] public ISender<ClientPipeline> Sender { get; set; } = null!;
+  [Inject] public IStore Store { get; set; } = null!;
+  [Inject] private IServiceProvider ServiceProvider { get; set; } = null!;
+
+  /// <summary>
+  /// Maintains all components that subscribe to a State.
+  /// Is updated by using the GetState method
+  /// </summary>
+  [Inject] public Subscriptions Subscriptions { get; set; } = null!;
+
+  /// <summary>
+  /// Exposes StateHasChanged
+  /// </summary>
+  public void ReRender() => base.InvokeAsync(StateHasChanged);
+
+  /// <summary>
+  /// Records the render kind, then applies parameters.
+  /// </summary>
+  public override Task SetParametersAsync(ParameterView parameters)
+  {
+    StateRenderKindObserver.Observe(ServiceProvider, () => RendererInfo.IsInteractive);
+    return base.SetParametersAsync(parameters);
+  }
+
+  /// <summary>
+  /// Place a Subscription for the calling component
+  /// And returns the requested state
+  /// </summary>
+  /// <typeparam name="TState"></typeparam>
+  /// <returns></returns>
+  protected TState GetState<TState>() where TState : IState
+  {
+    Type stateType = typeof(TState);
+    Subscriptions.Add(stateType, this);
+    StateRenderKindObserver.Observe(ServiceProvider, () => RendererInfo.IsInteractive);
+    return Store.GetState<TState>();
+  }
+
+  public void Dispose()
+  {
+    Subscriptions.Remove(this);
+    GC.SuppressFinalize(this);
+  }
+}
+
+public static class InstanceCounter
+{
+  private static readonly ConcurrentDictionary<Type, int> InstanceCounts = new();
+
+  public static int GetCount<T>() => InstanceCounts.GetOrAdd(typeof(T), 0);
+
+  public static void IncrementCount<T>() => InstanceCounts.AddOrUpdate(typeof(T), 1, (_, count) => count + 1);
+}

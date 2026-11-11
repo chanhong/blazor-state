@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <AssemblyName>Test.App.Server</AssemblyName>
+    <RootNamespace>Test.App.Server</RootNamespace>
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <UseHttp Condition="'$(UseHttp)' == ''">false</UseHttp>
+    <!-- Distinct namespace for generated Mediator/Sender/Publisher types and for
+         AddGeneratedMediator. TimeWarp.Mediator 15 emits that extension into
+         TimeWarpMediatorNamespace (here Test.App.Server.Generated), not into
+         Microsoft.Extensions.DependencyInjection. This host imports that namespace
+         and calls AddGeneratedMediator&lt;ServerPipeline&gt;() directly. -->
+    <TimeWarpMediatorNamespace>Test.App.Server.Generated</TimeWarpMediatorNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\test-app-client\test-app-client.csproj" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
+    <!-- The server owns its own generated mediator for the ServerPipeline. -->
+    <PackageReference Include="TimeWarp.Mediator" />
+    <PackageReference Include="TimeWarp.Mediator.Generators" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Client.Integration.Tests" />
+  </ItemGroup>
+</Project>

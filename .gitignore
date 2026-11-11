@@ -3,6 +3,11 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Ignore packages.lock.json except for main libraries
+# Only source libraries need reproducible builds
+packages.lock.json
+!source/**/packages.lock.json
+
 # User-specific files
 *.suo
 *.user
@@ -46,7 +51,7 @@ dlldata.c
 project.lock.json
 project.fragment.lock.json
 artifacts/
-**/Properties/launchSettings.json
+# **/Properties/launchSettings.json
 
 *_i.c
 *_p.c
@@ -289,19 +294,84 @@ __pycache__/
 /BlazorDefault2018-05-02.Client/
 /BlazorDefault2018-05-02.Server/
 /BlazorDefault2018-05-02.Shared/
-/.vscode/
-/source/BlazorState.Js/dist/
+/source/TimeWarpState.Js/dist/
 
 /test/BaseTemplateApp/
 /test/BSS/
-/test/TestApp/TestApp.Client/wwwroot/blazorstate.js
+/test/TestApp/TestApp.Client/wwwroot/timewarpstate.js
 /source/AnyClone/
 /source/TypeSupport/
-/Source/BlazorState/wwwroot/blazorstate.js
 
 /StatiqDocs/output
-/Source/BlazorState/wwwroot/*.js
-/Source/BlazorState/wwwroot/*.js.map
-/Source/BlazorState/wwwroot/js/
-/BlazorState.sln.EasyRun.json
+/TimeWarpState.sln.EasyRun.json
 /Samples/Tutorial/Sample/Sample.sln.EasyRun.json
+*.binlog
+/Documentation/TimeWarp.State/
+*.bkp
+# Ignore all files in Razor Source Generators directories
+**/Microsoft.NET.Sdk.Razor.SourceGenerators/**
+**/Microsoft.CodeAnalysis.Razor.Compiler.SourceGenerators/**
+/tests/test-app/test-app-client/generated/**
+/tests/test-app-end-to-end-tests/output/**
+/tests/test-app/output/**
+
+/.aider.input.history.md
+/.aider.chat.history.md
+/.aider.tags.cache.v3/cache.db
+/.aider.tags.cache.v3/cache.db-shm
+/.aider.tags.cache.v3/cache.db-wal
+/.aider.input.history
+.agent/workspace/
+
+# Routine journals beside kitchens (local; not product)
+*.journal.json
+
+# Memsearch state (plugin index, daily notes; local until promoted).
+# Deliberate promote of distilled memory: git add -f .memsearch/memory/<file>.md
+.memsearch/
+.memsearch/memory/
+
+# Herdr pane-command oracle logs beside kitchens (local; not product)
+oracle-*.log
+
+# Task-work host progress lines beside kitchens (local; not product)
+task-work.progress.log
+
+# Per-user tool state (XDG .local/, e.g. gh device-id; local; not product)
+.local/
+
+# Routine journals, mission briefs, and progress logs beside kitchens (local; not product)
+*.next.md
+*.progress.log
+
+# Aspire CLI per-checkout settings written next to an AppHost (any directory).
+# `aspire run` and `dotnet run` under Aspire 13.6+ create this so a later run
+# can find the AppHost project. It is not repo content; a dirty copy blocked
+# `dev release --dry-run` on 2026-10-12.
+aspire.config.json
+
+# Review-round markers beside kitchens (local; not product)
+**/review/round-*/base.sha
+**/review/round-*/closed
+
+# Publish output staged into TimeWarp.State.DevTools.App before pack.
+source/timewarp-state-devtools-app/tools/
+
+# Mission heartbeat in the claim worktree (local; not product)
+mission.heartbeat
+
+# Routine journals, mission briefs, and progress logs beside kitchens (local; not product)
+stacked-task-set*.resume.json
+
+# AOT dev CLI (self-install output; local; not product)
+bin/dev
+# AOT dev CLI debug companion (self-install output; local; not product)
+bin/dev.dbg
+# AOT dev CLI on Windows (self-install output; local; not product)
+bin/dev.exe
+
+# VS Code settings: Peacock rewrites this file; vscode-window-icon --fix writes it locally (not tracked)
+.vscode/settings.json
+
+# ganda task work walk state (signal logs, walk locks, walk holders) in origin-home
+/.timewarp/signals/

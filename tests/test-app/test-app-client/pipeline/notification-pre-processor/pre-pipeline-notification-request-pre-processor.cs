@@ -1,0 +1,38 @@
+#region Purpose
+// Pipeline behavior that publishes a PrePipelineNotification before each action runs.
+#endregion
+
+#region Design
+// Registered at order 500 and constrained to IAction. Publishes through IPublisher<ClientPipeline> before calling
+// next().
+#endregion
+
+namespace Test.App.Client.Pipeline.NotificationPreProcessor;
+
+internal sealed class PrePipelineNotificationRequestPreProcessor<TMessage, TResponse> : IPipelineBehavior<TMessage, TResponse>
+  where TMessage : notnull, IAction
+{
+  private readonly ILogger Logger;
+  private readonly IPublisher<ClientPipeline> Publisher;
+  public PrePipelineNotificationRequestPreProcessor
+  (
+    ILogger<PrePipelineNotificationRequestPreProcessor<TMessage, TResponse>> logger,
+    IPublisher<ClientPipeline> publisher
+  )
+  {
+    Publisher = publisher;
+    Logger = logger;
+  }
+
+  public async ValueTask<TResponse> Handle(TMessage message, MessageHandlerDelegate<TMessage, TResponse> next, CancellationToken cancellationToken)
+  {
+    var notification = new PrePipelineNotification
+    {
+      Request = message
+    };
+
+    Logger.LogDebug(nameof(PrePipelineNotificationRequestPreProcessor<TMessage, TResponse>));
+    await Publisher.Publish(notification, cancellationToken);
+    return await next(message, cancellationToken);
+  }
+}

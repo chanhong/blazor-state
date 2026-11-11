@@ -1,0 +1,174 @@
+# Claude.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+**TimeWarp.State** is a state management library implementing the Flux pattern using the Mediator pipeline. The core package has no Blazor dependency. **TimeWarp.State.Blazor** holds components, JavaScript interop, and render subscriptions. It handles both client-side (WebAssembly) and server-side Blazor with async state management, and console hosts can use the core package alone.
+
+Package layout, host registration, and which packages are AOT-compatible are summarized in [ai-context.md](ai-context.md).
+
+## Development Commands
+
+### Git Workflow
+**Worktree constraints**: Cannot switch/pull/delete branches across worktrees
+- Create PRs: `gh pr create --head <branch> --base master --title "..." --body "..."`
+- Merge PRs: `gh pr merge <PR#> --merge` (no --delete-branch)
+- No squash/rebase commits
+
+### Testing
+```bash
+# Run all tests using Fixie framework
+dotnet run --file ./scripts/test.cs
+
+# Run end-to-end tests using Playwright
+UseHttp=true dotnet run --file ./scripts/e2e.cs
+
+# Run specific test project
+dotnet fixie <ProjectName>
+```
+
+### Development Server
+```bash
+# Run test application
+dotnet run --file ./scripts/run-test-app.cs
+
+# Manual test app run
+dotnet watch --project ./tests/test-app/test-app-server/test-app-server.csproj
+```
+
+### Build & Package
+```bash
+# Build NuGet packages
+dotnet run --file ./scripts/package.cs
+
+# Build individual project
+dotnet build --project <ProjectPath> --configuration Release
+```
+
+### Release Process
+- **Master branch**: Builds and tests automatically, no publishing
+- **GitHub Releases**: Trigger automatic NuGet publishing
+- Release workflow validates version matches tag before publishing
+
+### Analysis
+```bash
+# Pack the libraries, including the embedded analyzer
+./bin/dev pack
+```
+
+## Architecture Overview
+
+### Core Libraries (Source/)
+- **TimeWarp.State**: Store, state, actions, handlers, state-initialization and state-transaction behaviors. No Blazor reference. Embeds Analyzer and SourceGenerator as analyzers (not separate packages)
+- **TimeWarp.State.Blazor**: Components, JavaScript interop, render subscriptions, wwwroot assets. Static web assets stay under `_content/TimeWarp.State/`
+- **TimeWarp.State.Plus**: ActionTracking, Routing, persistence. Package id unchanged. Depends on TimeWarp.State.Blazor
+- **TimeWarp.State.Analyzer**: Roslyn analyzers (embedded in main package)
+- **TimeWarp.State.SourceGenerator**: Code generation (embedded in main package). One `TimeWarpStateGenerator`: fact extractors, one `StateGraph`, emitters for dispatch methods, `[Reducer]` handlers, catalog, persistence `Load`, clones and registration, and the State manifest. `facts/` is shared with the analyzer as linked source
+- **TimeWarp.State.Policies**: NetArchTest rules for architecture validation
+
+### Testing Strategy
+- **Unit Tests**: Core library functionality
+- **Integration Tests**: Client integration testing
+- **E2E Tests**: Playwright-based end-to-end testing
+- **Architecture Tests**: NetArchTest validation
+- **Test.App**: Comprehensive test application (Client/Server/Contracts)
+
+### Key Patterns
+- **CQRS/Flux**: Unidirectional data flow with Actions/StateActionHandlers
+- **Action authoring**: Prefer the short shape: `[Reducer]` on the nested `Action` of a `static partial` `*ActionSet` plus `private static void Reduce(TState state, Action action)`; the generator emits the `Handler`. Hand-write `Handler : StateActionHandler<Action>` (long shape) for async work, injected services, or anything beyond a synchronous state change. Both get the same dispatch method, catalog entry and manifest entry. See `documentation/topics/actions.md`; TWS0014 reports a `[Reducer]` the generator cannot serve.
+- **TimeWarp.Mediator 15.0.0-beta.5**: One package (`TimeWarp.Mediator`, contracts plus the bundled analyzer) and `TimeWarp.Mediator.Generators` on hosts. Generated `AddGeneratedMediator<TScope>()` lives in `TimeWarp.Mediator.Generated` (or `TimeWarpMediatorNamespace`); import that namespace. `ISender<ClientPipeline>` / `ISender<ServerPipeline>`. Handler and behavior methods return `ValueTask`.
+- **Async-First**: All operations are async by design
+- **TypeScript Integration**: Strong typing for JavaScript interop
+
+## Code Standards
+
+### Required Formatting (.clinerules)
+- **Indentation**: 2 spaces (no tabs), LF line endings
+- **Brackets**: Allman style - all brackets on own lines aligned with parent
+- **Namespaces**: File-scoped (`namespace Example;`)
+- **Type Declaration**: Explicit types preferred over `var`
+- **Naming**: 
+  - Class scope: PascalCase (no underscore prefixes)
+  - Method scope: camelCase for locals/parameters
+
+### Example Class Structure
+```csharp
+namespace TimeWarp.State.Example;
+
+public class UserService
+{
+  private readonly HttpClient HttpClient;
+  private int RequestCount;
+
+  public UserService
+  (
+    HttpClient httpClient
+  )
+  {
+    HttpClient = httpClient;
+  }
+
+  public async Task<List<UserData>> GetUsersAsync
+  (
+    string[] userIds
+  )
+  {
+    List<UserData> results = new();
+    // Implementation...
+    return results;
+  }
+}
+```
+
+## Project Configuration
+
+### Framework
+- **Target**: .NET 11 (`net11.0`)
+- **SDK**: 11.0.100-rc.3.26522.148 from `global.json` (rollForward latestMinor, allowPrerelease true until .NET 11 GA on 2026-11-10; re-pin to 11.0.100 then)
+- **Cloning**: the clone stage of `TimeWarpStateGenerator` emits the clone for each concrete `State<T>` (and for `[GenerateClone]` types). `StateTransactionBehavior` calls `ICloneable` first, then `StateCloneRegistry`. There is no reflection cloner. `TWSG002` is an error when a reachable member cannot be cloned. Never use blocking waits (`SemaphoreSlim.Wait`, `Task.Wait`, `.Result`) in library code: .NET 11 throws on single-threaded browser WASM. Library projects declare `<SupportedPlatform Include="browser" />` so CA1416 flags them.
+- **Nullable**: Enabled in `Directory.Build.props`
+- **ImplicitUsings**: Enabled
+
+### Package Management
+- **Central Management**: Uses Directory.Packages.props
+- **Lock Files**: Not enabled. There is no `packages.lock.json`.
+- **Local Feed**: `dev pack` writes `artifacts/packages` (`LocalNuGetFeed` maps to `PackagesDirectory`) and checks each `.nupkg` layout. Root `nuget.config` does not list that folder. Sample 00 auto is the only `PackageReference` consumer; `verify-samples` packs, deletes each packable id's same-version extract under `artifacts/nuget-packages`, then restores it with `--force` and package source mapping. The other samples `ProjectReference` source. Restores use `artifacts/nuget-packages` (`RestorePackagesPath` and `globalPackagesFolder`) so a local pack is not written to `~/.nuget/packages` under the release version. `dev pack` fails when that shared-cache `.nupkg.metadata` `source` is a local path.
+
+### Build Process
+1. Analyzers and Source Generators built first
+2. TypeScript compilation for JavaScript interop
+3. NuGet package creation with Source Link
+4. Architecture tests validate design constraints
+
+## Testing Framework
+
+Uses **Fixie** testing framework instead of standard xUnit/NUnit. Test projects follow pattern:
+- Test discovery by convention
+- Async test support
+- Custom test lifecycles for Blazor components
+
+## Task Management
+
+Follow structured task workflow using Kanban approach:
+- Task files: `kanban/<column>/NNN-title/`
+- Commit format: `Task: <TaskID> = <Status> <Description>`
+- Move tasks between folders as status changes
+
+## Package Structure
+
+**Published NuGet Packages:**
+- **TimeWarp.State**: Main package (includes embedded Analyzer/SourceGenerator)
+- **TimeWarp.State.Plus**: Extended features package
+- **TimeWarp.State.Policies**: Architecture testing rules
+
+**Note**: Analyzer and SourceGenerator projects are **NOT** published as separate packages - they are embedded in the main TimeWarp.State package as analyzers.
+
+## Essential Dependencies
+
+- **Blazor**: UI framework (Server/WebAssembly)
+- **TimeWarp.Mediator 15.0.0-beta.5**: CQRS/mediator via `TimeWarp.Mediator` plus generated `AddGeneratedMediator<TScope>()` / named pipelines (`ISender<ClientPipeline>`, `ISender<ServerPipeline>`). There is no Contracts package and no Analyzers package.
+- **Microsoft.JSInterop**: JavaScript interop for browser features
+- **Fixie**: Testing framework
+- **NetArchTest**: Architecture testing
+- **Playwright**: End-to-end testing

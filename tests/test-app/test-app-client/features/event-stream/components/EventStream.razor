@@ -1,0 +1,15 @@
+@namespace Test.App.Client.Features.EventStream.Components
+@inherits BaseComponent
+
+<h6>Events</h6>
+<ul data-qa=@TestId>
+  @foreach(string item in Events)
+  {
+   <li>@item</li>
+  }
+</ul>
+
+@code
+{
+  private IReadOnlyList<string> Events => EventStreamState.Events;
+}
